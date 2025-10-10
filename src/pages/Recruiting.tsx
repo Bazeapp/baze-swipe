@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Briefcase, MapPin, Mail, Phone, Award, LogOut, ChevronDown } from "lucide-react";
+import { CheckCircle, XCircle, Briefcase, MapPin, Mail, Phone, Award, LogOut, ChevronDown, RefreshCw } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +42,7 @@ const Recruiting = () => {
   const [showRejectionInput, setShowRejectionInput] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -165,6 +166,35 @@ const Recruiting = () => {
     }
   };
 
+  const handleSyncToAirtable = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-airtable');
+      
+      if (error) {
+        toast({
+          title: "Sync Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sync Complete",
+          description: data.message,
+        });
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Sync Error",
+        description: "Failed to sync with Airtable",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -260,16 +290,25 @@ const Recruiting = () => {
                           )}
                         </div>
                       </DropdownMenuItem>
-                    ))}
+                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              {selectedJob?.description && (
-                <div className="text-sm text-muted-foreground max-w-md">
-                  {selectedJob.description}
-                </div>
-              )}
+              <Button 
+                onClick={handleSyncToAirtable} 
+                disabled={isSyncing}
+                variant="outline"
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Syncing...' : 'Sync to Airtable'}
+              </Button>
             </div>
+            {selectedJob?.description && (
+              <div className="text-sm text-muted-foreground max-w-md">
+                {selectedJob.description}
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -20,6 +20,7 @@ export type Database = {
           email: string
           experience_years: number | null
           id: string
+          job_id: string | null
           linkedin_url: string | null
           location: string | null
           name: string
@@ -35,6 +36,7 @@ export type Database = {
           email: string
           experience_years?: number | null
           id?: string
+          job_id?: string | null
           linkedin_url?: string | null
           location?: string | null
           name: string
@@ -50,6 +52,7 @@ export type Database = {
           email?: string
           experience_years?: number | null
           id?: string
+          job_id?: string | null
           linkedin_url?: string | null
           location?: string | null
           name?: string
@@ -60,7 +63,15 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "candidates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       decisions: {
         Row: {
@@ -103,6 +114,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      jobs: {
+        Row: {
+          created_at: string
+          department: string | null
+          description: string | null
+          id: string
+          requirements: string[] | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          requirements?: string[] | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          requirements?: string[] | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {

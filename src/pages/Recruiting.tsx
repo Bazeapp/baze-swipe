@@ -5,7 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Briefcase, MapPin, Mail, Phone, Award, LogOut } from "lucide-react";
+import { CheckCircle, XCircle, Briefcase, MapPin, Mail, Phone, Award, LogOut, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+interface Job {
+  id: string;
+  title: string;
+  department: string | null;
+  description: string | null;
+  requirements: string[] | null;
+}
 
 interface Candidate {
   id: string;
@@ -16,9 +30,12 @@ interface Candidate {
   skills: string[] | null;
   location: string | null;
   phone: string | null;
+  job_id: string | null;
 }
 
 const Recruiting = () => {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -30,8 +47,14 @@ const Recruiting = () => {
 
   useEffect(() => {
     checkAuth();
-    loadCandidates();
+    loadJobs();
   }, []);
+
+  useEffect(() => {
+    if (selectedJob) {
+      loadCandidates(selectedJob.id);
+    }
+  }, [selectedJob]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -42,12 +65,39 @@ const Recruiting = () => {
     setUser(session.user);
   };
 
-  const loadCandidates = async () => {
+  const loadJobs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("status", "active")
+        .order("title");
+
+      if (error) throw error;
+      setJobs(data || []);
+      if (data && data.length > 0) {
+        setSelectedJob(data[0]);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCandidates = async (jobId: string) => {
+    setLoading(true);
+    setCurrentIndex(0);
     try {
       const { data, error } = await supabase
         .from("candidates")
         .select("*")
         .eq("status", "pending")
+        .eq("job_id", jobId)
         .order("created_at");
 
       if (error) throw error;
@@ -175,6 +225,53 @@ const Recruiting = () => {
             Logout
           </Button>
         </div>
+
+        {/* Job Selector */}
+        <Card className="shadow-card bg-gradient-card">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Reviewing for</p>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                      <div className="text-left">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xl font-bold">{selectedJob?.title || "Select Job"}</h3>
+                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        {selectedJob?.department && (
+                          <p className="text-sm text-muted-foreground">{selectedJob.department}</p>
+                        )}
+                      </div>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-64 bg-popover z-50" align="start">
+                    {jobs.map((job) => (
+                      <DropdownMenuItem
+                        key={job.id}
+                        onClick={() => setSelectedJob(job)}
+                        className={selectedJob?.id === job.id ? "bg-accent" : ""}
+                      >
+                        <div>
+                          <p className="font-semibold">{job.title}</p>
+                          {job.department && (
+                            <p className="text-xs text-muted-foreground">{job.department}</p>
+                          )}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {selectedJob?.description && (
+                <div className="text-sm text-muted-foreground max-w-md">
+                  {selectedJob.description}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="shadow-hover transition-smooth bg-gradient-card">
           <CardContent className="p-8 space-y-6">

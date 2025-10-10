@@ -1,0 +1,289 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { CheckCircle, XCircle, Briefcase, MapPin, Mail, Phone, Award, LogOut } from "lucide-react";
+
+interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  experience_years: number | null;
+  skills: string[] | null;
+  location: string | null;
+  phone: string | null;
+}
+
+const Recruiting = () => {
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showRejectionInput, setShowRejectionInput] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    checkAuth();
+    loadCandidates();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate("/auth");
+      return;
+    }
+    setUser(session.user);
+  };
+
+  const loadCandidates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("candidates")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at");
+
+      if (error) throw error;
+      setCandidates(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDecision = async (decision: "pass" | "no_pass") => {
+    if (decision === "no_pass" && !showRejectionInput) {
+      setShowRejectionInput(true);
+      return;
+    }
+
+    if (decision === "no_pass" && !rejectionReason.trim()) {
+      toast({
+        title: "Rejection reason required",
+        description: "Please provide a reason for rejection",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const currentCandidate = candidates[currentIndex];
+    if (!currentCandidate || !user) return;
+
+    try {
+      const { error: decisionError } = await supabase.from("decisions").insert({
+        candidate_id: currentCandidate.id,
+        recruiter_id: user.id,
+        decision,
+        rejection_reason: decision === "no_pass" ? rejectionReason : null,
+      });
+
+      if (decisionError) throw decisionError;
+
+      const { error: updateError } = await supabase
+        .from("candidates")
+        .update({ status: decision === "pass" ? "passed" : "rejected" })
+        .eq("id", currentCandidate.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: decision === "pass" ? "Candidate Passed" : "Candidate Rejected",
+        description: `${currentCandidate.name} has been ${decision === "pass" ? "passed" : "rejected"}`,
+      });
+
+      setRejectionReason("");
+      setShowRejectionInput(false);
+      setCurrentIndex((prev) => prev + 1);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading candidates...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentCandidate = candidates[currentIndex];
+
+  if (!currentCandidate) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+        <Card className="max-w-md shadow-card">
+          <CardContent className="pt-6 text-center space-y-4">
+            <div className="w-16 h-16 bg-gradient-accent rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-8 h-8 text-accent-foreground" />
+            </div>
+            <h2 className="text-2xl font-bold">All Done!</h2>
+            <p className="text-muted-foreground">
+              You've reviewed all pending candidates. Great work!
+            </p>
+            <Button onClick={handleLogout} variant="outline">
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <div className="max-w-4xl mx-auto py-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
+              <Briefcase className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Baze Recruiting</h1>
+              <p className="text-sm text-muted-foreground">
+                Candidate {currentIndex + 1} of {candidates.length}
+              </p>
+            </div>
+          </div>
+          <Button onClick={handleLogout} variant="outline" size="sm">
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+
+        <Card className="shadow-hover transition-smooth bg-gradient-card">
+          <CardContent className="p-8 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold mb-2">{currentCandidate.name}</h2>
+                  <p className="text-xl text-primary font-semibold">{currentCandidate.role}</p>
+                </div>
+                {currentCandidate.experience_years && (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg">
+                    <Award className="w-5 h-5 text-primary" />
+                    <span className="font-semibold">{currentCandidate.experience_years} years</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4 pt-4">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Mail className="w-5 h-5" />
+                  <span>{currentCandidate.email}</span>
+                </div>
+                {currentCandidate.phone && (
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <Phone className="w-5 h-5" />
+                    <span>{currentCandidate.phone}</span>
+                  </div>
+                )}
+                {currentCandidate.location && (
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <MapPin className="w-5 h-5" />
+                    <span>{currentCandidate.location}</span>
+                  </div>
+                )}
+              </div>
+
+              {currentCandidate.skills && currentCandidate.skills.length > 0 && (
+                <div className="pt-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">SKILLS</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {currentCandidate.skills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="px-3 py-1.5 bg-accent/10 text-accent rounded-full text-sm font-medium"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {showRejectionInput ? (
+              <div className="space-y-3 pt-4 border-t">
+                <label className="text-sm font-semibold">Rejection Reason</label>
+                <Textarea
+                  placeholder="Why is this candidate not suitable? (This helps improve our screening)"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="min-h-[100px]"
+                />
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => handleDecision("no_pass")}
+                    variant="destructive"
+                    className="flex-1"
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Confirm Rejection
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowRejectionInput(false);
+                      setRejectionReason("");
+                    }}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-4 pt-4">
+                <Button
+                  onClick={() => handleDecision("no_pass")}
+                  variant="destructive"
+                  size="lg"
+                  className="flex-1 h-14 text-lg"
+                >
+                  <XCircle className="w-5 h-5 mr-2" />
+                  No Pass
+                </Button>
+                <Button
+                  onClick={() => handleDecision("pass")}
+                  size="lg"
+                  className="flex-1 h-14 text-lg bg-gradient-primary hover:opacity-90"
+                >
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Pass
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default Recruiting;

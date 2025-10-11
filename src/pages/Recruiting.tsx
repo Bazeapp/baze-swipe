@@ -271,8 +271,17 @@ const Recruiting = () => {
             </p>
             <div className="flex flex-col gap-2 w-full">
               <Button 
+                onClick={handleSyncToAirtable} 
+                disabled={isSyncing}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Sincronizzando...' : 'Importa da Airtable'}
+              </Button>
+              <Button 
                 onClick={handlePopulateCandidates} 
                 disabled={isPopulating}
+                variant="outline"
                 className="gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${isPopulating ? 'animate-spin' : ''}`} />

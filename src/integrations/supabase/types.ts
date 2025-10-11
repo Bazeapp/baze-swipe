@@ -151,6 +151,62 @@ export type Database = {
         }
         Relationships: []
       }
+      lavoratori_selezionati: {
+        Row: {
+          airtable_id: string | null
+          created_at: string
+          descrizione_personale: string | null
+          eta: number | null
+          feedback_ai: string | null
+          foto_url: string | null
+          id: string
+          job_id: string | null
+          nome: string
+          riassunto_esperienza_referenze: string | null
+          status: string
+          travel_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          airtable_id?: string | null
+          created_at?: string
+          descrizione_personale?: string | null
+          eta?: number | null
+          feedback_ai?: string | null
+          foto_url?: string | null
+          id?: string
+          job_id?: string | null
+          nome: string
+          riassunto_esperienza_referenze?: string | null
+          status?: string
+          travel_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          airtable_id?: string | null
+          created_at?: string
+          descrizione_personale?: string | null
+          eta?: number | null
+          feedback_ai?: string | null
+          foto_url?: string | null
+          id?: string
+          job_id?: string | null
+          nome?: string
+          riassunto_esperienza_referenze?: string | null
+          status?: string
+          travel_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lavoratori_selezionati_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

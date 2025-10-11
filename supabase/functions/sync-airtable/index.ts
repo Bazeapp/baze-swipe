@@ -5,18 +5,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface Candidate {
-  id: string
-  name: string
-  email: string
-  role: string
-  status: string
-  phone?: string
-  location?: string
-  linkedin_url?: string
-  experience_years?: number
-  skills?: string[]
+interface Lavoratore {
+  nome: string
+  eta?: number
+  foto_url?: string
+  travel_time?: string
+  descrizione_personale?: string
+  riassunto_esperienza_referenze?: string
+  feedback_ai?: string
   job_id?: string
+  status: string
+  airtable_id: string
 }
 
 Deno.serve(async (req) => {
@@ -37,63 +36,92 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Fetch all candidates from database
-    const { data: candidates, error: fetchError } = await supabaseClient
-      .from('candidates')
-      .select('*')
+    // Fetch records from Airtable
+    const airtableUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/lavoratori_selezionati`
+    const airtableResponse = await fetch(airtableUrl, {
+      headers: {
+        'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+      }
+    })
 
-    if (fetchError) {
-      console.error('Error fetching candidates:', fetchError)
-      throw fetchError
+    if (!airtableResponse.ok) {
+      throw new Error(`Airtable API error: ${airtableResponse.statusText}`)
     }
 
-    console.log(`Found ${candidates?.length || 0} candidates to sync`)
+    const airtableData = await airtableResponse.json()
+    const records = airtableData.records || []
 
-    // Sync each candidate to Airtable
+    console.log(`Found ${records.length} records in Airtable`)
+
+    // Get first active job for assignment
+    const { data: jobs } = await supabaseClient
+      .from('jobs')
+      .select('id')
+      .eq('status', 'active')
+      .limit(1)
+
+    const defaultJobId = jobs?.[0]?.id
+
+    // Sync each record to Supabase
     const syncResults = []
     
-    for (const candidate of candidates || []) {
+    for (const record of records) {
       try {
-        const airtableRecord = {
-          fields: {
-            'Name': candidate.name,
-            'Email': candidate.email,
-            'Role': candidate.role,
-            'Status': candidate.status,
-            'Phone': candidate.phone || '',
-            'Location': candidate.location || '',
-            'LinkedIn': candidate.linkedin_url || '',
-            'Experience Years': candidate.experience_years || 0,
-            'Skills': candidate.skills ? candidate.skills.join(', ') : '',
-            'Candidate ID': candidate.id,
-          }
+        const fields = record.fields
+        const airtableId = record.id
+
+        const lavoratore: Lavoratore = {
+          nome: fields.Nome || fields.nome || 'Nome non specificato',
+          eta: fields.Eta || fields.eta,
+          foto_url: fields.Foto?.[0]?.url || fields.foto_url,
+          travel_time: fields['Travel Time'] || fields.travel_time,
+          descrizione_personale: fields['Descrizione Personale'] || fields.descrizione_personale,
+          riassunto_esperienza_referenze: fields['Riassunto Esperienza e Referenze'] || fields.riassunto_esperienza_referenze,
+          feedback_ai: fields['Feedback AI'] || fields.feedback_ai,
+          job_id: defaultJobId,
+          status: 'pending',
+          airtable_id: airtableId
         }
 
-        const response = await fetch(
-          `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Candidates`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(airtableRecord),
-          }
-        )
+        // Check if record already exists
+        const { data: existing } = await supabaseClient
+          .from('lavoratori_selezionati')
+          .select('id')
+          .eq('airtable_id', airtableId)
+          .maybeSingle()
 
-        const result = await response.json()
-        
-        if (!response.ok) {
-          console.error(`Failed to sync candidate ${candidate.id}:`, result)
-          syncResults.push({ id: candidate.id, success: false, error: result })
+        if (existing) {
+          // Update existing record
+          const { error } = await supabaseClient
+            .from('lavoratori_selezionati')
+            .update(lavoratore)
+            .eq('airtable_id', airtableId)
+
+          if (error) {
+            console.error(`Failed to update lavoratore ${airtableId}:`, error)
+            syncResults.push({ id: airtableId, success: false, error })
+          } else {
+            console.log(`Successfully updated lavoratore ${airtableId}`)
+            syncResults.push({ id: airtableId, success: true, action: 'updated' })
+          }
         } else {
-          console.log(`Successfully synced candidate ${candidate.id}`)
-          syncResults.push({ id: candidate.id, success: true })
+          // Insert new record
+          const { error } = await supabaseClient
+            .from('lavoratori_selezionati')
+            .insert(lavoratore)
+
+          if (error) {
+            console.error(`Failed to insert lavoratore ${airtableId}:`, error)
+            syncResults.push({ id: airtableId, success: false, error })
+          } else {
+            console.log(`Successfully inserted lavoratore ${airtableId}`)
+            syncResults.push({ id: airtableId, success: true, action: 'inserted' })
+          }
         }
       } catch (error) {
-        console.error(`Error syncing candidate ${candidate.id}:`, error)
+        console.error(`Error syncing record ${record.id}:`, error)
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        syncResults.push({ id: candidate.id, success: false, error: errorMessage })
+        syncResults.push({ id: record.id, success: false, error: errorMessage })
       }
     }
 
@@ -101,7 +129,7 @@ Deno.serve(async (req) => {
     
     return new Response(
       JSON.stringify({
-        message: `Synced ${successCount} of ${candidates?.length || 0} candidates to Airtable`,
+        message: `Synced ${successCount} of ${records.length} lavoratori from Airtable`,
         results: syncResults,
       }),
       {

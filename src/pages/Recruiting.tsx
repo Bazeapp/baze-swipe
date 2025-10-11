@@ -21,23 +21,23 @@ interface Job {
   requirements: string[] | null;
 }
 
-interface Candidate {
+interface Lavoratore {
   id: string;
-  name: string;
-  email: string;
-  role: string;
-  experience_years: number | null;
-  skills: string[] | null;
-  location: string | null;
-  phone: string | null;
+  nome: string;
+  eta: number | null;
+  foto_url: string | null;
+  travel_time: string | null;
+  descrizione_personale: string | null;
+  riassunto_esperienza_referenze: string | null;
+  feedback_ai: string | null;
   job_id: string | null;
-  photo_url: string | null;
+  status: string;
 }
 
 const Recruiting = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectionInput, setShowRejectionInput] = useState(false);
@@ -55,7 +55,7 @@ const Recruiting = () => {
 
   useEffect(() => {
     if (selectedJob) {
-      loadCandidates(selectedJob.id);
+      loadLavoratori(selectedJob.id);
     }
   }, [selectedJob]);
 
@@ -92,19 +92,19 @@ const Recruiting = () => {
     }
   };
 
-  const loadCandidates = async (jobId: string) => {
+  const loadLavoratori = async (jobId: string) => {
     setLoading(true);
     setCurrentIndex(0);
     try {
       const { data, error } = await supabase
-        .from("candidates")
+        .from("lavoratori_selezionati")
         .select("*")
         .eq("status", "pending")
         .eq("job_id", jobId)
         .order("created_at");
 
       if (error) throw error;
-      setCandidates(data || []);
+      setLavoratori(data || []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -131,12 +131,12 @@ const Recruiting = () => {
       return;
     }
 
-    const currentCandidate = candidates[currentIndex];
-    if (!currentCandidate || !user) return;
+    const currentLavoratore = lavoratori[currentIndex];
+    if (!currentLavoratore || !user) return;
 
     try {
       const { error: decisionError } = await supabase.from("decisions").insert({
-        candidate_id: currentCandidate.id,
+        candidate_id: currentLavoratore.id,
         recruiter_id: user.id,
         decision,
         rejection_reason: decision === "no_pass" ? rejectionReason : null,
@@ -145,15 +145,15 @@ const Recruiting = () => {
       if (decisionError) throw decisionError;
 
       const { error: updateError } = await supabase
-        .from("candidates")
+        .from("lavoratori_selezionati")
         .update({ status: decision === "pass" ? "passed" : "rejected" })
-        .eq("id", currentCandidate.id);
+        .eq("id", currentLavoratore.id);
 
       if (updateError) throw updateError;
 
       toast({
-        title: decision === "pass" ? "Candidate Passed" : "Candidate Rejected",
-        description: `${currentCandidate.name} has been ${decision === "pass" ? "passed" : "rejected"}`,
+        title: decision === "pass" ? "Candidata Approvata" : "Candidata Rifiutata",
+        description: `${currentLavoratore.nome} è stata ${decision === "pass" ? "approvata" : "rifiutata"}`,
       });
 
       setRejectionReason("");
@@ -191,10 +191,10 @@ const Recruiting = () => {
           title: "Completato!",
           description: `${data.message}. Clicca di nuovo per aggiungere altri!`,
         });
-        // Reload candidates
+        // Reload lavoratori
         loadJobs();
         if (selectedJob) {
-          loadCandidates(selectedJob.id);
+          loadLavoratori(selectedJob.id);
         }
       }
     } catch (error) {
@@ -248,15 +248,15 @@ const Recruiting = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading candidates...</p>
+          <p className="text-muted-foreground">Caricamento profili...</p>
         </div>
       </div>
     );
   }
 
-  const currentCandidate = candidates[currentIndex];
+  const currentLavoratore = lavoratori[currentIndex];
 
-  if (!currentCandidate) {
+  if (!currentLavoratore) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
         <Card className="max-w-md shadow-card">
@@ -264,9 +264,9 @@ const Recruiting = () => {
             <div className="w-16 h-16 bg-gradient-accent rounded-full flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8 text-accent-foreground" />
             </div>
-            <h2 className="text-2xl font-bold">All Done!</h2>
+            <h2 className="text-2xl font-bold">Tutto Fatto!</h2>
             <p className="text-muted-foreground">
-              You've reviewed all pending candidates. Great work!
+              Hai revisionato tutti i profili. Ottimo lavoro!
             </p>
             <div className="flex flex-col gap-2 w-full">
               <Button 
@@ -299,7 +299,7 @@ const Recruiting = () => {
             <div>
               <h1 className="text-2xl font-bold">Baze Recruiting</h1>
               <p className="text-sm text-muted-foreground">
-                Candidate {currentIndex + 1} of {candidates.length}
+                Profilo {currentIndex + 1} di {lavoratori.length}
               </p>
             </div>
           </div>
@@ -378,59 +378,51 @@ const Recruiting = () => {
 
         <Card className="shadow-hover transition-smooth bg-gradient-card">
           <CardContent className="p-8 space-y-6">
+            {/* Feedback AI - Mostrato per primo */}
+            {currentLavoratore.feedback_ai && (
+              <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
+                <h3 className="text-sm font-semibold text-muted-foreground mb-2">FEEDBACK AI</h3>
+                <p className="text-sm leading-relaxed">{currentLavoratore.feedback_ai}</p>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <h2 className="text-3xl font-bold mb-2">{currentCandidate.name}</h2>
-                  <p className="text-xl text-primary font-semibold">{currentCandidate.role}</p>
+                  <h2 className="text-3xl font-bold mb-2">{currentLavoratore.nome}</h2>
+                  {currentLavoratore.eta && (
+                    <p className="text-lg text-muted-foreground">{currentLavoratore.eta} anni</p>
+                  )}
                 </div>
-                {currentCandidate.photo_url && (
+                {currentLavoratore.foto_url && (
                   <img 
-                    src={currentCandidate.photo_url} 
-                    alt={currentCandidate.name}
-                    className="w-24 h-24 rounded-full object-cover border-2 border-primary/20"
+                    src={currentLavoratore.foto_url} 
+                    alt={currentLavoratore.nome}
+                    className="w-32 h-32 rounded-full object-cover border-2 border-primary/20"
                   />
-                )}
-                {currentCandidate.experience_years && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg">
-                    <Award className="w-5 h-5 text-primary" />
-                    <span className="font-semibold">{currentCandidate.experience_years} years</span>
-                  </div>
                 )}
               </div>
 
               <div className="grid md:grid-cols-2 gap-4 pt-4">
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <Mail className="w-5 h-5" />
-                  <span>{currentCandidate.email}</span>
-                </div>
-                {currentCandidate.phone && (
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                    <Phone className="w-5 h-5" />
-                    <span>{currentCandidate.phone}</span>
-                  </div>
-                )}
-                {currentCandidate.location && (
+                {currentLavoratore.travel_time && (
                   <div className="flex items-center gap-3 text-muted-foreground">
                     <MapPin className="w-5 h-5" />
-                    <span>{currentCandidate.location}</span>
+                    <span>{currentLavoratore.travel_time}</span>
                   </div>
                 )}
               </div>
 
-              {currentCandidate.skills && currentCandidate.skills.length > 0 && (
+              {currentLavoratore.descrizione_personale && (
                 <div className="pt-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">SKILLS</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {currentCandidate.skills.map((skill, idx) => (
-                      <span
-                        key={idx}
-                        className="px-3 py-1.5 bg-accent/10 text-accent rounded-full text-sm font-medium"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">DESCRIZIONE PERSONALE</h3>
+                  <p className="text-sm leading-relaxed">{currentLavoratore.descrizione_personale}</p>
+                </div>
+              )}
+
+              {currentLavoratore.riassunto_esperienza_referenze && (
+                <div className="pt-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">ESPERIENZA E REFERENZE</h3>
+                  <p className="text-sm leading-relaxed whitespace-pre-line">{currentLavoratore.riassunto_esperienza_referenze}</p>
                 </div>
               )}
             </div>

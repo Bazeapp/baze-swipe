@@ -164,6 +164,8 @@ export type Database = {
           nome: string
           processo_res: string | null
           riassunto_esperienza_referenze: string | null
+          stato_processo_res: string | null
+          stato_selezione: string | null
           status: string
           travel_time: string | null
           updated_at: string
@@ -180,6 +182,8 @@ export type Database = {
           nome: string
           processo_res?: string | null
           riassunto_esperienza_referenze?: string | null
+          stato_processo_res?: string | null
+          stato_selezione?: string | null
           status?: string
           travel_time?: string | null
           updated_at?: string
@@ -196,6 +200,8 @@ export type Database = {
           nome?: string
           processo_res?: string | null
           riassunto_esperienza_referenze?: string | null
+          stato_processo_res?: string | null
+          stato_selezione?: string | null
           status?: string
           travel_time?: string | null
           updated_at?: string

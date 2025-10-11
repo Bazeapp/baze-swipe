@@ -19,6 +19,8 @@ interface Lavoratore {
   processo_res: string | null;
   job_id: string | null;
   status: string;
+  stato_selezione: string | null;
+  stato_processo_res: string | null;
 }
 
 const Recruiting = () => {
@@ -54,6 +56,8 @@ const Recruiting = () => {
         .from("lavoratori_selezionati")
         .select("*")
         .eq("status", "pending")
+        .in("stato_selezione", ["Prospetto", "Candidato Good Fit"])
+        .in("stato_processo_res", ["da assegnare", "raccolta candidature", "fare ricerca"])
         .order("created_at", { ascending: false })
         .limit(50);
 

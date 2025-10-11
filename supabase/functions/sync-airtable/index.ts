@@ -17,6 +17,8 @@ interface Lavoratore {
   job_id?: string
   status: string
   airtable_id: string
+  stato_selezione?: string
+  stato_processo_res?: string
 }
 
 Deno.serve(async (req) => {
@@ -101,7 +103,9 @@ Deno.serve(async (req) => {
           processo_res: processoRes,
           job_id: defaultJobId,
           status: 'pending',
-          airtable_id: airtableId
+          airtable_id: airtableId,
+          stato_selezione: fields.stato_selezione,
+          stato_processo_res: fields.stato_processo_res
         }
 
         // Check if record already exists by processo_res

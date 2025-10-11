@@ -262,10 +262,7 @@ const Recruiting = () => {
             {currentLavoratore.feedback_ai && (
               <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
                 <h3 className="text-sm font-semibold text-muted-foreground mb-2">FEEDBACK AI</h3>
-                <div 
-                  className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground"
-                  dangerouslySetInnerHTML={{ __html: currentLavoratore.feedback_ai }}
-                />
+                <p className="text-sm leading-relaxed whitespace-pre-line">{currentLavoratore.feedback_ai}</p>
               </div>
             )}
 

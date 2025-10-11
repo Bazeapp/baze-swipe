@@ -19,6 +19,7 @@ interface Lavoratore {
   riassunto_esperienza_referenze: string | null;
   feedback_ai: string | null;
   processo_res: string | null;
+  email_processo_res_famiglia: string | null;
   job_id: string | null;
   status: string;
   stato_selezione: string | null;
@@ -79,7 +80,7 @@ const Recruiting = () => {
     try {
       const { data, error } = await supabase
         .from("lavoratori_selezionati")
-        .select("processo_res")
+        .select("processo_res, email_processo_res_famiglia")
         .not("processo_res", "is", null)
         .eq("status", "pending")
         .in("stato_selezione", ["Prospetto", "Candidato Good Fit"])
@@ -87,8 +88,15 @@ const Recruiting = () => {
 
       if (error) throw error;
       
-      // Get unique processo_res values
-      const uniqueProcessi = [...new Set(data.map(item => item.processo_res).filter(Boolean))] as string[];
+      // Get unique processo_res values with their email labels
+      const processiMap = new Map<string, string>();
+      data.forEach(item => {
+        if (item.processo_res && !processiMap.has(item.processo_res)) {
+          processiMap.set(item.processo_res, item.email_processo_res_famiglia || item.processo_res);
+        }
+      });
+      
+      const uniqueProcessi = Array.from(processiMap.keys());
       setProcessiRes(uniqueProcessi);
       
       // Auto-select first processo if available
@@ -299,16 +307,21 @@ const Recruiting = () => {
           </div>
           <div className="flex gap-2 items-center flex-wrap">
             <Select value={selectedProcesso} onValueChange={setSelectedProcesso}>
-              <SelectTrigger className="w-[250px]">
+              <SelectTrigger className="w-[280px]">
                 <SelectValue placeholder="Seleziona processo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutti i processi</SelectItem>
-                {processiRes.map((processo) => (
-                  <SelectItem key={processo} value={processo}>
-                    {processo}
-                  </SelectItem>
-                ))}
+                {processiRes.map((processo) => {
+                  // Find the email label for this processo
+                  const lavoratore = lavoratori.find(l => l.processo_res === processo);
+                  const label = lavoratore?.email_processo_res_famiglia || processo;
+                  return (
+                    <SelectItem key={processo} value={processo}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             <Button 

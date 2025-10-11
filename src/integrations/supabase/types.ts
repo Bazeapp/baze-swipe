@@ -156,6 +156,7 @@ export type Database = {
           airtable_id: string | null
           created_at: string
           descrizione_personale: string | null
+          email_processo_res_famiglia: string | null
           eta: number | null
           feedback_ai: string | null
           foto_url: string | null
@@ -174,6 +175,7 @@ export type Database = {
           airtable_id?: string | null
           created_at?: string
           descrizione_personale?: string | null
+          email_processo_res_famiglia?: string | null
           eta?: number | null
           feedback_ai?: string | null
           foto_url?: string | null
@@ -192,6 +194,7 @@ export type Database = {
           airtable_id?: string | null
           created_at?: string
           descrizione_personale?: string | null
+          email_processo_res_famiglia?: string | null
           eta?: number | null
           feedback_ai?: string | null
           foto_url?: string | null

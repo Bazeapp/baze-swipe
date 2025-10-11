@@ -14,6 +14,7 @@ interface Lavoratore {
   riassunto_esperienza_referenze?: string
   feedback_ai?: string
   processo_res?: string
+  email_processo_res_famiglia?: string
   job_id?: string
   status: string
   airtable_id: string
@@ -110,6 +111,7 @@ Deno.serve(async (req) => {
           riassunto_esperienza_referenze: esperienzaReferenze || undefined,
           feedback_ai: fields.ai_agent_profiler,
           processo_res: processoRes,
+          email_processo_res_famiglia: Array.isArray(fields.email_processo_res_famiglia) ? fields.email_processo_res_famiglia[0] : fields.email_processo_res_famiglia,
           job_id: defaultJobId,
           status: 'pending',
           airtable_id: airtableId,

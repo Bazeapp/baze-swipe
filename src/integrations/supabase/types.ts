@@ -25,6 +25,7 @@ export type Database = {
           location: string | null
           name: string
           phone: string | null
+          photo_url: string | null
           resume_url: string | null
           role: string
           skills: string[] | null
@@ -41,6 +42,7 @@ export type Database = {
           location?: string | null
           name: string
           phone?: string | null
+          photo_url?: string | null
           resume_url?: string | null
           role: string
           skills?: string[] | null
@@ -57,6 +59,7 @@ export type Database = {
           location?: string | null
           name?: string
           phone?: string | null
+          photo_url?: string | null
           resume_url?: string | null
           role?: string
           skills?: string[] | null

@@ -10,6 +10,7 @@ interface Lavoratore {
   eta?: number
   foto_url?: string
   travel_time?: string
+  travel_time_tra_cap?: string
   descrizione_personale?: string
   riassunto_esperienza_referenze?: string
   feedback_ai?: string
@@ -111,6 +112,7 @@ Deno.serve(async (req) => {
           eta: Array.isArray(fields.eta_lavoratore) ? fields.eta_lavoratore[0] : fields.eta_lavoratore,
           foto_url: fields.foto_lavoratore?.[0]?.url,
           travel_time: fields.travel_time_tra_cap,
+          travel_time_tra_cap: fields.travel_time_tra_cap,
           descrizione_personale: fields.chi_sono,
           riassunto_esperienza_referenze: esperienzaReferenze || undefined,
           feedback_ai: fields.ai_agent_profiler,

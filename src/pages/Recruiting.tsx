@@ -15,6 +15,7 @@ interface Lavoratore {
   eta: number | null;
   foto_url: string | null;
   travel_time: string | null;
+  travel_time_tra_cap: string | null;
   descrizione_personale: string | null;
   riassunto_esperienza_referenze: string | null;
   feedback_ai: string | null;
@@ -391,27 +392,34 @@ const Recruiting = () => {
           {/* Center: Candidate Profile */}
           <Card className="lg:col-span-6 shadow-hover">
             <CardContent className="p-6 space-y-4">
-              {/* Header with photo and name */}
-              <div className="flex items-start gap-4">
-                {currentLavoratore.foto_url && (
-                  <img 
-                    src={currentLavoratore.foto_url} 
-                    alt={currentLavoratore.nome}
-                    className="w-20 h-20 rounded-full object-cover border-2 border-primary/20"
-                  />
-                )}
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold">{currentLavoratore.nome}</h2>
-                  <div className="flex gap-3 text-sm text-muted-foreground mt-1">
-                    {currentLavoratore.eta && <span>{currentLavoratore.eta} anni</span>}
-                    {currentLavoratore.travel_time && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {currentLavoratore.travel_time}
-                      </span>
-                    )}
+              {/* Header with photo, name and status */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4 flex-1">
+                  {currentLavoratore.foto_url && (
+                    <img 
+                      src={currentLavoratore.foto_url} 
+                      alt={currentLavoratore.nome}
+                      className="w-20 h-20 rounded-full object-cover border-2 border-primary/20"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold">{currentLavoratore.nome}</h2>
+                    <div className="flex gap-3 text-sm text-muted-foreground mt-1">
+                      {currentLavoratore.eta && <span>{currentLavoratore.eta} anni</span>}
+                      {currentLavoratore.travel_time_tra_cap && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          {currentLavoratore.travel_time_tra_cap}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+                {currentLavoratore.stato_selezione && (
+                  <div className="px-3 py-1 bg-primary/10 text-primary rounded-md text-sm font-medium whitespace-nowrap">
+                    {currentLavoratore.stato_selezione}
+                  </div>
+                )}
               </div>
 
               {/* Esperienza */}

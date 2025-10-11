@@ -173,6 +173,7 @@ export type Database = {
           stato_selezione: string | null
           status: string
           travel_time: string | null
+          travel_time_tra_cap: string | null
           updated_at: string
         }
         Insert: {
@@ -196,6 +197,7 @@ export type Database = {
           stato_selezione?: string | null
           status?: string
           travel_time?: string | null
+          travel_time_tra_cap?: string | null
           updated_at?: string
         }
         Update: {
@@ -219,6 +221,7 @@ export type Database = {
           stato_selezione?: string | null
           status?: string
           travel_time?: string | null
+          travel_time_tra_cap?: string | null
           updated_at?: string
         }
         Relationships: [

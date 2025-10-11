@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
 
         const lavoratore: Lavoratore = {
           nome: fields.lavoratore || 'Nome non specificato',
-          eta: fields.eta_lavoratore,
+          eta: Array.isArray(fields.eta_lavoratore) ? fields.eta_lavoratore[0] : fields.eta_lavoratore,
           foto_url: fields.foto_lavoratore?.[0]?.url,
           travel_time: fields.travel_time_tra_cap,
           descrizione_personale: fields.chi_sono,

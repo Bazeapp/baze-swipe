@@ -404,13 +404,11 @@ const Recruiting = () => {
                   )}
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold">{currentLavoratore.nome}</h2>
-                    <div className="flex gap-3 text-sm text-muted-foreground mt-1">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                       {currentLavoratore.eta && <span>{currentLavoratore.eta} anni</span>}
+                      {currentLavoratore.eta && currentLavoratore.travel_time_tra_cap && <span>•</span>}
                       {currentLavoratore.travel_time_tra_cap && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          {currentLavoratore.travel_time_tra_cap}
-                        </span>
+                        <span>{currentLavoratore.travel_time_tra_cap} minuti di distanza</span>
                       )}
                     </div>
                   </div>

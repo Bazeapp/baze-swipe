@@ -265,10 +265,20 @@ const Recruiting = () => {
             <p className="text-muted-foreground">
               You've reviewed all pending candidates. Great work!
             </p>
-            <Button onClick={handleLogout} variant="outline">
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
+            <div className="flex flex-col gap-2 w-full">
+              <Button 
+                onClick={handlePopulateCandidates} 
+                disabled={isPopulating}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isPopulating ? 'animate-spin' : ''}`} />
+                {isPopulating ? 'Generando...' : 'Genera 50 Nuovi Candidati'}
+              </Button>
+              <Button onClick={handleLogout} variant="outline">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

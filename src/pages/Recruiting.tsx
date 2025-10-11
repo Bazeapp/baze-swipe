@@ -30,6 +30,7 @@ interface Lavoratore {
   descrizione_personale: string | null;
   riassunto_esperienza_referenze: string | null;
   feedback_ai: string | null;
+  processo_res: string | null;
   job_id: string | null;
   status: string;
 }

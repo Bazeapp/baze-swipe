@@ -162,6 +162,7 @@ export type Database = {
           id: string
           job_id: string | null
           nome: string
+          processo_res: string | null
           riassunto_esperienza_referenze: string | null
           status: string
           travel_time: string | null
@@ -177,6 +178,7 @@ export type Database = {
           id?: string
           job_id?: string | null
           nome: string
+          processo_res?: string | null
           riassunto_esperienza_referenze?: string | null
           status?: string
           travel_time?: string | null
@@ -192,6 +194,7 @@ export type Database = {
           id?: string
           job_id?: string | null
           nome?: string
+          processo_res?: string | null
           riassunto_esperienza_referenze?: string | null
           status?: string
           travel_time?: string | null

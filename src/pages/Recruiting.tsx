@@ -5,21 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Briefcase, MapPin, Mail, Phone, Award, LogOut, ChevronDown, RefreshCw } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-interface Job {
-  id: string;
-  title: string;
-  department: string | null;
-  description: string | null;
-  requirements: string[] | null;
-}
+import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw } from "lucide-react";
 
 interface Lavoratore {
   id: string;
@@ -36,8 +22,6 @@ interface Lavoratore {
 }
 
 const Recruiting = () => {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -45,20 +29,13 @@ const Recruiting = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isPopulating, setIsPopulating] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     checkAuth();
-    loadJobs();
+    loadLavoratori();
   }, []);
-
-  useEffect(() => {
-    if (selectedJob) {
-      loadLavoratori(selectedJob.id);
-    }
-  }, [selectedJob]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -69,31 +46,7 @@ const Recruiting = () => {
     setUser(session.user);
   };
 
-  const loadJobs = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("jobs")
-        .select("*")
-        .eq("status", "active")
-        .order("title");
-
-      if (error) throw error;
-      setJobs(data || []);
-      if (data && data.length > 0) {
-        setSelectedJob(data[0]);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadLavoratori = async (jobId: string) => {
+  const loadLavoratori = async () => {
     setLoading(true);
     setCurrentIndex(0);
     try {
@@ -101,8 +54,8 @@ const Recruiting = () => {
         .from("lavoratori_selezionati")
         .select("*")
         .eq("status", "pending")
-        .eq("job_id", jobId)
-        .order("created_at");
+        .order("created_at", { ascending: false })
+        .limit(50);
 
       if (error) throw error;
       setLavoratori(data || []);
@@ -169,47 +122,6 @@ const Recruiting = () => {
     }
   };
 
-  const handlePopulateCandidates = async () => {
-    setIsPopulating(true);
-    try {
-      toast({
-        title: "Generazione in corso",
-        description: "Sto creando 10 candidati con foto AI...",
-      });
-
-      const { data, error } = await supabase.functions.invoke('populate-candidates', {
-        body: { batchSize: 10 }
-      });
-      
-      if (error) {
-        toast({
-          title: "Errore",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Completato!",
-          description: `${data.message}. Clicca di nuovo per aggiungere altri!`,
-        });
-        // Reload lavoratori
-        loadJobs();
-        if (selectedJob) {
-          loadLavoratori(selectedJob.id);
-        }
-      }
-    } catch (error) {
-      console.error('Population error:', error);
-      toast({
-        title: "Errore",
-        description: "Errore durante la generazione dei candidati",
-        variant: "destructive",
-      });
-    } finally {
-      setIsPopulating(false);
-    }
-  };
-
   const handleSyncToAirtable = async () => {
     setIsSyncing(true);
     try {
@@ -226,6 +138,8 @@ const Recruiting = () => {
           title: "Sync Complete",
           description: data.message,
         });
+        // Reload lavoratori
+        loadLavoratori();
       }
     } catch (error) {
       console.error('Sync error:', error);
@@ -304,69 +218,23 @@ const Recruiting = () => {
               </p>
             </div>
           </div>
-          <Button onClick={handleLogout} variant="outline" size="sm">
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleSyncToAirtable} 
+              disabled={isSyncing}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Sync...' : 'Import'}
+            </Button>
+            <Button onClick={handleLogout} variant="outline" size="sm">
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
-
-        {/* Job Selector */}
-        <Card className="shadow-card bg-gradient-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Reviewing for</p>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                      <div className="text-left">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-xl font-bold">{selectedJob?.title || "Select Job"}</h3>
-                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        {selectedJob?.department && (
-                          <p className="text-sm text-muted-foreground">{selectedJob.department}</p>
-                        )}
-                      </div>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-64 bg-popover z-50" align="start">
-                    {jobs.map((job) => (
-                      <DropdownMenuItem
-                        key={job.id}
-                        onClick={() => setSelectedJob(job)}
-                        className={selectedJob?.id === job.id ? "bg-accent" : ""}
-                      >
-                        <div>
-                          <p className="font-semibold">{job.title}</p>
-                          {job.department && (
-                            <p className="text-xs text-muted-foreground">{job.department}</p>
-                          )}
-                        </div>
-                      </DropdownMenuItem>
-                     ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleSyncToAirtable} 
-                  disabled={isSyncing}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                  {isSyncing ? 'Sincronizzando...' : 'Importa da Airtable'}
-                </Button>
-              </div>
-            </div>
-            {selectedJob?.description && (
-              <div className="text-sm text-muted-foreground max-w-md">
-                {selectedJob.description}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         <Card className="shadow-hover transition-smooth bg-gradient-card">
           <CardContent className="p-8 space-y-6">

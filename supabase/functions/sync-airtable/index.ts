@@ -70,14 +70,20 @@ Deno.serve(async (req) => {
         const fields = record.fields
         const airtableId = record.id
 
+        // Combina esperienza e referenze
+        const esperienzaReferenze = [
+          fields.riassunto_esperienze ? `ESPERIENZA:\n${fields.riassunto_esperienze}` : '',
+          fields.riassunto_referenze ? `REFERENZE:\n${fields.riassunto_referenze}` : ''
+        ].filter(Boolean).join('\n\n')
+
         const lavoratore: Lavoratore = {
-          nome: fields.Nome || fields.nome || 'Nome non specificato',
-          eta: fields.Eta || fields.eta,
-          foto_url: fields.Foto?.[0]?.url || fields.foto_url,
-          travel_time: fields['Travel Time'] || fields.travel_time,
-          descrizione_personale: fields['Descrizione Personale'] || fields.descrizione_personale,
-          riassunto_esperienza_referenze: fields['Riassunto Esperienza e Referenze'] || fields.riassunto_esperienza_referenze,
-          feedback_ai: fields['Feedback AI'] || fields.feedback_ai,
+          nome: fields.lavoratore || 'Nome non specificato',
+          eta: fields.eta_lavoratore,
+          foto_url: fields.foto_lavoratore?.[0]?.url,
+          travel_time: fields.travel_time_tra_cap,
+          descrizione_personale: fields.chi_sono,
+          riassunto_esperienza_referenze: esperienzaReferenze || undefined,
+          feedback_ai: fields.ai_agent_profiler,
           job_id: defaultJobId,
           status: 'pending',
           airtable_id: airtableId

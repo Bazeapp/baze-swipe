@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
         const airtableId = record.id
 
         console.log(`Processing processo_res: ${processoRes}, record: ${airtableId}`)
+        console.log('Available fields:', Object.keys(fields))
 
         // Combina esperienza e referenze
         const esperienzaReferenze = [

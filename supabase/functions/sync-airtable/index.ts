@@ -108,11 +108,11 @@ Deno.serve(async (req) => {
           stato_processo_res: fields.stato_processo_res
         }
 
-        // Check if record already exists by processo_res
+        // Check if record already exists by airtable_id
         const { data: existing } = await supabaseClient
           .from('lavoratori_selezionati')
           .select('id')
-          .eq('processo_res', processoRes)
+          .eq('airtable_id', airtableId)
           .maybeSingle()
 
         if (existing) {
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
           const { error } = await supabaseClient
             .from('lavoratori_selezionati')
             .update(lavoratore)
-            .eq('processo_res', processoRes)
+            .eq('airtable_id', airtableId)
 
           if (error) {
             console.error(`Failed to update lavoratore ${processoRes}:`, error)

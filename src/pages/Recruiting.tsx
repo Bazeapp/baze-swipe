@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
@@ -32,6 +33,8 @@ const Recruiting = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [processiRes, setProcessiRes] = useState<string[]>([]);
+  const [selectedProcesso, setSelectedProcesso] = useState<string>("all");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -56,8 +59,12 @@ const Recruiting = () => {
 
   useEffect(() => {
     checkAuth();
-    loadLavoratori();
+    loadProcessiRes();
   }, []);
+
+  useEffect(() => {
+    loadLavoratori();
+  }, [selectedProcesso]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -68,16 +75,48 @@ const Recruiting = () => {
     setUser(session.user);
   };
 
+  const loadProcessiRes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("lavoratori_selezionati")
+        .select("processo_res")
+        .not("processo_res", "is", null)
+        .eq("status", "pending")
+        .in("stato_selezione", ["Prospetto", "Candidato Good Fit"])
+        .in("stato_processo_res", ["da assegnare", "raccolta candidature", "fare ricerca"]);
+
+      if (error) throw error;
+      
+      // Get unique processo_res values
+      const uniqueProcessi = [...new Set(data.map(item => item.processo_res).filter(Boolean))] as string[];
+      setProcessiRes(uniqueProcessi);
+      
+      // Auto-select first processo if available
+      if (uniqueProcessi.length > 0 && selectedProcesso === "all") {
+        setSelectedProcesso(uniqueProcessi[0]);
+      }
+    } catch (error: any) {
+      console.error("Error loading processi:", error);
+    }
+  };
+
   const loadLavoratori = async () => {
     setLoading(true);
     setCurrentIndex(0);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("lavoratori_selezionati")
         .select("*")
         .eq("status", "pending")
         .in("stato_selezione", ["Prospetto", "Candidato Good Fit"])
-        .in("stato_processo_res", ["da assegnare", "raccolta candidature", "fare ricerca"])
+        .in("stato_processo_res", ["da assegnare", "raccolta candidature", "fare ricerca"]);
+
+      // Filter by selected processo if not "all"
+      if (selectedProcesso !== "all") {
+        query = query.eq("processo_res", selectedProcesso);
+      }
+
+      const { data, error } = await query
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -246,7 +285,7 @@ const Recruiting = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <div className="max-w-4xl mx-auto py-8 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
               <Briefcase className="w-5 h-5 text-primary-foreground" />
@@ -258,7 +297,20 @@ const Recruiting = () => {
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center flex-wrap">
+            <Select value={selectedProcesso} onValueChange={setSelectedProcesso}>
+              <SelectTrigger className="w-[250px]">
+                <SelectValue placeholder="Seleziona processo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i processi</SelectItem>
+                {processiRes.map((processo) => (
+                  <SelectItem key={processo} value={processo}>
+                    {processo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button 
               onClick={handleSyncToAirtable} 
               disabled={isSyncing}

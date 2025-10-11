@@ -154,6 +154,9 @@ export type Database = {
       lavoratori_selezionati: {
         Row: {
           airtable_id: string | null
+          annuncio_luogo_riferimento_pubblico: string | null
+          annuncio_nucleo_famigliare: string | null
+          annuncio_orario_di_lavoro: string | null
           created_at: string
           descrizione_personale: string | null
           email_processo_res_famiglia: string | null
@@ -162,6 +165,7 @@ export type Database = {
           foto_url: string | null
           id: string
           job_id: string | null
+          mansioni_richieste_transformed_ai: string | null
           nome: string
           processo_res: string | null
           riassunto_esperienza_referenze: string | null
@@ -173,6 +177,9 @@ export type Database = {
         }
         Insert: {
           airtable_id?: string | null
+          annuncio_luogo_riferimento_pubblico?: string | null
+          annuncio_nucleo_famigliare?: string | null
+          annuncio_orario_di_lavoro?: string | null
           created_at?: string
           descrizione_personale?: string | null
           email_processo_res_famiglia?: string | null
@@ -181,6 +188,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           job_id?: string | null
+          mansioni_richieste_transformed_ai?: string | null
           nome: string
           processo_res?: string | null
           riassunto_esperienza_referenze?: string | null
@@ -192,6 +200,9 @@ export type Database = {
         }
         Update: {
           airtable_id?: string | null
+          annuncio_luogo_riferimento_pubblico?: string | null
+          annuncio_nucleo_famigliare?: string | null
+          annuncio_orario_di_lavoro?: string | null
           created_at?: string
           descrizione_personale?: string | null
           email_processo_res_famiglia?: string | null
@@ -200,6 +211,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           job_id?: string | null
+          mansioni_richieste_transformed_ai?: string | null
           nome?: string
           processo_res?: string | null
           riassunto_esperienza_referenze?: string | null

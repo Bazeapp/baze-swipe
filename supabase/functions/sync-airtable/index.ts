@@ -15,6 +15,10 @@ interface Lavoratore {
   feedback_ai?: string
   processo_res?: string
   email_processo_res_famiglia?: string
+  annuncio_luogo_riferimento_pubblico?: string
+  annuncio_orario_di_lavoro?: string
+  annuncio_nucleo_famigliare?: string
+  mansioni_richieste_transformed_ai?: string
   job_id?: string
   status: string
   airtable_id: string
@@ -112,6 +116,10 @@ Deno.serve(async (req) => {
           feedback_ai: fields.ai_agent_profiler,
           processo_res: processoRes,
           email_processo_res_famiglia: Array.isArray(fields.email_processo_res_famiglia) ? fields.email_processo_res_famiglia[0] : fields.email_processo_res_famiglia,
+          annuncio_luogo_riferimento_pubblico: Array.isArray(fields.annuncio_luogo_riferimento_pubblico) ? fields.annuncio_luogo_riferimento_pubblico[0] : fields.annuncio_luogo_riferimento_pubblico,
+          annuncio_orario_di_lavoro: Array.isArray(fields.annuncio_orario_di_lavoro) ? fields.annuncio_orario_di_lavoro[0] : fields.annuncio_orario_di_lavoro,
+          annuncio_nucleo_famigliare: Array.isArray(fields.annuncio_nucleo_famigliare) ? fields.annuncio_nucleo_famigliare[0] : fields.annuncio_nucleo_famigliare,
+          mansioni_richieste_transformed_ai: fields.mansioni_richieste_transformed_ai,
           job_id: defaultJobId,
           status: 'pending',
           airtable_id: airtableId,

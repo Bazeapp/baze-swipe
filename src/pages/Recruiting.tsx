@@ -20,6 +20,10 @@ interface Lavoratore {
   feedback_ai: string | null;
   processo_res: string | null;
   email_processo_res_famiglia: string | null;
+  annuncio_luogo_riferimento_pubblico: string | null;
+  annuncio_orario_di_lavoro: string | null;
+  annuncio_nucleo_famigliare: string | null;
+  mansioni_richieste_transformed_ai: string | null;
   job_id: string | null;
   status: string;
   stato_selezione: string | null;
@@ -292,8 +296,9 @@ const Recruiting = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <div className="max-w-4xl mx-auto py-8 space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="max-w-7xl mx-auto py-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
               <Briefcase className="w-5 h-5 text-primary-foreground" />
@@ -305,25 +310,7 @@ const Recruiting = () => {
               </p>
             </div>
           </div>
-          <div className="flex gap-2 items-center flex-wrap">
-            <Select value={selectedProcesso} onValueChange={setSelectedProcesso}>
-              <SelectTrigger className="w-[280px]">
-                <SelectValue placeholder="Seleziona processo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutti i processi</SelectItem>
-                {processiRes.map((processo) => {
-                  // Find the email label for this processo
-                  const lavoratore = lavoratori.find(l => l.processo_res === processo);
-                  const label = lavoratore?.email_processo_res_famiglia || processo;
-                  return (
-                    <SelectItem key={processo} value={processo}>
-                      {label}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+          <div className="flex gap-2 items-center">
             <Button 
               onClick={handleSyncToAirtable} 
               disabled={isSyncing}
@@ -341,76 +328,157 @@ const Recruiting = () => {
           </div>
         </div>
 
-        <Card className="shadow-hover transition-smooth bg-gradient-card">
-          <CardContent className="p-8 space-y-6">
-            {/* Feedback AI - Mostrato per primo */}
-            {currentLavoratore.feedback_ai && (
-              <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
-                <h3 className="text-sm font-semibold text-muted-foreground mb-2">FEEDBACK AI</h3>
-                <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
-                  <ReactMarkdown>{cleanFeedbackText(currentLavoratore.feedback_ai)}</ReactMarkdown>
+        {/* Main Layout - 3 columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Left: Job Info */}
+          <Card className="lg:col-span-3 shadow-hover">
+            <CardContent className="p-4 space-y-4">
+              <h2 className="text-lg font-semibold mb-4">Ricerca attiva</h2>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground">PROCESSO</label>
+                  <Select value={selectedProcesso} onValueChange={setSelectedProcesso}>
+                    <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder="Seleziona processo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tutti i processi</SelectItem>
+                      {processiRes.map((processo) => {
+                        const lavoratore = lavoratori.find(l => l.processo_res === processo);
+                        const label = lavoratore?.email_processo_res_famiglia || processo;
+                        return (
+                          <SelectItem key={processo} value={processo}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-            )}
 
-            <div className="space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <h2 className="text-3xl font-bold mb-2">{currentLavoratore.nome}</h2>
-                  {currentLavoratore.eta && (
-                    <p className="text-lg text-muted-foreground">{currentLavoratore.eta} anni</p>
-                  )}
-                </div>
+                {currentLavoratore.annuncio_luogo_riferimento_pubblico && (
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground">ZONA</label>
+                    <p className="text-sm mt-1">{currentLavoratore.annuncio_luogo_riferimento_pubblico}</p>
+                  </div>
+                )}
+
+                {currentLavoratore.annuncio_orario_di_lavoro && (
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground">ORARI</label>
+                    <p className="text-sm mt-1">{currentLavoratore.annuncio_orario_di_lavoro}</p>
+                  </div>
+                )}
+
+                {currentLavoratore.annuncio_nucleo_famigliare && (
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground">FAMIGLIA</label>
+                    <p className="text-sm mt-1">{currentLavoratore.annuncio_nucleo_famigliare}</p>
+                  </div>
+                )}
+
+                {currentLavoratore.mansioni_richieste_transformed_ai && (
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground">MANSIONI</label>
+                    <p className="text-sm mt-1 whitespace-pre-line">{currentLavoratore.mansioni_richieste_transformed_ai}</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Center: Candidate Profile */}
+          <Card className="lg:col-span-6 shadow-hover">
+            <CardContent className="p-6 space-y-4">
+              {/* Header with photo and name */}
+              <div className="flex items-start gap-4">
                 {currentLavoratore.foto_url && (
                   <img 
                     src={currentLavoratore.foto_url} 
                     alt={currentLavoratore.nome}
-                    className="w-32 h-32 rounded-full object-cover border-2 border-primary/20"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-primary/20"
                   />
                 )}
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4 pt-4">
-                {currentLavoratore.travel_time && (
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                    <MapPin className="w-5 h-5" />
-                    <span>{currentLavoratore.travel_time}</span>
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold">{currentLavoratore.nome}</h2>
+                  <div className="flex gap-3 text-sm text-muted-foreground mt-1">
+                    {currentLavoratore.eta && <span>{currentLavoratore.eta} anni</span>}
+                    {currentLavoratore.travel_time && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-4 h-4" />
+                        {currentLavoratore.travel_time}
+                      </span>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
-              {currentLavoratore.descrizione_personale && (
-                <div className="pt-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">DESCRIZIONE PERSONALE</h3>
-                  <p className="text-sm leading-relaxed">{currentLavoratore.descrizione_personale}</p>
-                </div>
-              )}
-
+              {/* Esperienza */}
               {currentLavoratore.riassunto_esperienza_referenze && (
-                <div className="pt-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">ESPERIENZA E REFERENZE</h3>
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">ESPERIENZA</h3>
                   <p className="text-sm leading-relaxed whitespace-pre-line">{currentLavoratore.riassunto_esperienza_referenze}</p>
                 </div>
               )}
-            </div>
 
-            {showRejectionInput ? (
-              <div className="space-y-3 pt-4 border-t">
-                <label className="text-sm font-semibold">Rejection Reason</label>
-                <Textarea
-                  placeholder="Why is this candidate not suitable? (This helps improve our screening)"
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  className="min-h-[100px]"
-                />
-                <div className="flex gap-3">
+              {/* Feedback AI */}
+              {currentLavoratore.feedback_ai && (
+                <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">FEEDBACK AI</h3>
+                  <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
+                    <ReactMarkdown>{cleanFeedbackText(currentLavoratore.feedback_ai)}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation buttons */}
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  onClick={handlePrevious}
+                  variant="outline"
+                  size="sm"
+                  disabled={currentIndex === 0}
+                  className="flex-1"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Precedente
+                </Button>
+                <Button
+                  onClick={handleNext}
+                  variant="outline"
+                  size="sm"
+                  disabled={currentIndex === lavoratori.length - 1}
+                  className="flex-1"
+                >
+                  Successivo
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Right: Decision */}
+          <Card className="lg:col-span-3 shadow-hover">
+            <CardContent className="p-4 space-y-3">
+              <h2 className="text-lg font-semibold mb-4">Decisione</h2>
+              
+              {showRejectionInput ? (
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold">Motivo No Pass</label>
+                  <Textarea
+                    placeholder="Perché questo candidato non è adatto?"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="min-h-[100px]"
+                  />
                   <Button
                     onClick={() => handleDecision("no_pass")}
                     variant="destructive"
-                    className="flex-1"
+                    className="w-full"
                   >
                     <XCircle className="w-4 h-4 mr-2" />
-                    Confirm Rejection
+                    Conferma Rifiuto
                   </Button>
                   <Button
                     onClick={() => {
@@ -418,59 +486,33 @@ const Recruiting = () => {
                       setRejectionReason("");
                     }}
                     variant="outline"
-                    className="flex-1"
+                    className="w-full"
                   >
-                    Cancel
+                    Annulla
                   </Button>
                 </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex gap-4 pt-4">
+              ) : (
+                <div className="space-y-3">
                   <Button
                     onClick={() => handleDecision("no_pass")}
                     variant="destructive"
-                    size="lg"
-                    className="flex-1 h-14 text-lg"
+                    className="w-full h-12"
                   >
                     <XCircle className="w-5 h-5 mr-2" />
                     No Pass
                   </Button>
                   <Button
                     onClick={() => handleDecision("pass")}
-                    size="lg"
-                    className="flex-1 h-14 text-lg bg-gradient-primary hover:opacity-90"
+                    className="w-full h-12 bg-gradient-primary hover:opacity-90"
                   >
                     <CheckCircle className="w-5 h-5 mr-2" />
                     Pass
                   </Button>
                 </div>
-                <div className="flex gap-2 pt-4 border-t mt-4">
-                  <Button
-                    onClick={handlePrevious}
-                    variant="outline"
-                    size="lg"
-                    disabled={currentIndex === 0}
-                    className="flex-1"
-                  >
-                    <ChevronLeft className="w-5 h-5 mr-2" />
-                    Precedente
-                  </Button>
-                  <Button
-                    onClick={handleNext}
-                    variant="outline"
-                    size="lg"
-                    disabled={currentIndex === lavoratori.length - 1}
-                    className="flex-1"
-                  >
-                    Successivo
-                    <ChevronRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

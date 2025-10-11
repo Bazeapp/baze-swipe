@@ -166,6 +166,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { batchSize = 10 } = await req.json().catch(() => ({ batchSize: 10 }))
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -187,26 +189,34 @@ Deno.serve(async (req) => {
       throw new Error('No active jobs found')
     }
 
-    console.log(`Found ${jobs.length} jobs, generating 50 candidates...`)
+    // Check how many candidates already exist
+    const { count: existingCount } = await supabaseClient
+      .from('candidates')
+      .select('*', { count: 'exact', head: true })
+
+    const startIndex = existingCount || 0
+
+    console.log(`Found ${jobs.length} jobs, generating ${batchSize} candidates (starting from ${startIndex})...`)
 
     const results = []
     
-    for (let i = 0; i < 50; i++) {
-      const jobId = jobs[i % jobs.length].id
-      const candidateData = generateCandidate(i, jobId)
+    for (let i = 0; i < batchSize; i++) {
+      const actualIndex = startIndex + i
+      const jobId = jobs[actualIndex % jobs.length].id
+      const candidateData = generateCandidate(actualIndex, jobId)
       
-      console.log(`Processing candidate ${i + 1}/50: ${candidateData.name}`)
+      console.log(`Processing candidate ${actualIndex + 1}: ${candidateData.name}`)
 
       // Generate photo
-      const photoBase64 = await generateProfilePhoto(candidateData.name, i)
+      const photoBase64 = await generateProfilePhoto(candidateData.name, actualIndex)
       let photoUrl = null
 
       if (photoBase64) {
-        const fileName = `${candidateData.name.toLowerCase().replace(/\s+/g, '-')}-${i}.png`
+        const fileName = `${candidateData.name.toLowerCase().replace(/\s+/g, '-')}-${actualIndex}.png`
         photoUrl = await uploadToStorage(supabaseClient, photoBase64, fileName)
         
-        // Small delay to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Reduced delay
+        await new Promise(resolve => setTimeout(resolve, 500))
       }
 
       // Insert candidate
@@ -229,11 +239,13 @@ Deno.serve(async (req) => {
     }
 
     const successCount = results.filter(r => r.success).length
+    const totalCandidates = (existingCount || 0) + successCount
 
     return new Response(
       JSON.stringify({
-        message: `Created ${successCount} of 50 candidates`,
-        results
+        message: `Created ${successCount} of ${batchSize} candidates (total: ${totalCandidates})`,
+        results,
+        totalCandidates
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -173,10 +173,12 @@ const Recruiting = () => {
     try {
       toast({
         title: "Generazione in corso",
-        description: "Sto creando 50 candidati con foto AI. Questo richiederà circa 1 minuto...",
+        description: "Sto creando 10 candidati con foto AI...",
       });
 
-      const { data, error } = await supabase.functions.invoke('populate-candidates');
+      const { data, error } = await supabase.functions.invoke('populate-candidates', {
+        body: { batchSize: 10 }
+      });
       
       if (error) {
         toast({
@@ -187,9 +189,10 @@ const Recruiting = () => {
       } else {
         toast({
           title: "Completato!",
-          description: data.message,
+          description: `${data.message}. Clicca di nuovo per aggiungere altri!`,
         });
         // Reload candidates
+        loadJobs();
         if (selectedJob) {
           loadCandidates(selectedJob.id);
         }
@@ -272,7 +275,7 @@ const Recruiting = () => {
                 className="gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${isPopulating ? 'animate-spin' : ''}`} />
-                {isPopulating ? 'Generando...' : 'Genera 50 Nuovi Candidati'}
+                {isPopulating ? 'Generando...' : 'Genera 10 Candidati'}
               </Button>
               <Button onClick={handleLogout} variant="outline">
                 <LogOut className="w-4 h-4 mr-2" />
@@ -352,7 +355,7 @@ const Recruiting = () => {
                   className="gap-2"
                 >
                   <RefreshCw className={`h-4 w-4 ${isPopulating ? 'animate-spin' : ''}`} />
-                  {isPopulating ? 'Generando...' : 'Genera 50 Candidati'}
+                  {isPopulating ? 'Generando...' : 'Genera 10 Candidati'}
                 </Button>
                 <Button 
                   onClick={handleSyncToAirtable} 

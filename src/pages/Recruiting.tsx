@@ -278,15 +278,6 @@ const Recruiting = () => {
                 <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 {isSyncing ? 'Sincronizzando...' : 'Importa da Airtable'}
               </Button>
-              <Button 
-                onClick={handlePopulateCandidates} 
-                disabled={isPopulating}
-                variant="outline"
-                className="gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${isPopulating ? 'animate-spin' : ''}`} />
-                {isPopulating ? 'Generando...' : 'Genera 10 Candidati'}
-              </Button>
               <Button onClick={handleLogout} variant="outline">
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
@@ -359,22 +350,13 @@ const Recruiting = () => {
               </div>
               <div className="flex gap-2">
                 <Button 
-                  onClick={handlePopulateCandidates} 
-                  disabled={isPopulating}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isPopulating ? 'animate-spin' : ''}`} />
-                  {isPopulating ? 'Generando...' : 'Genera 10 Candidati'}
-                </Button>
-                <Button 
                   onClick={handleSyncToAirtable} 
                   disabled={isSyncing}
                   variant="outline"
                   className="gap-2"
                 >
                   <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                  {isSyncing ? 'Syncing...' : 'Sync to Airtable'}
+                  {isSyncing ? 'Sincronizzando...' : 'Importa da Airtable'}
                 </Button>
               </div>
             </div>

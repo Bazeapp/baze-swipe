@@ -31,6 +31,7 @@ interface Candidate {
   location: string | null;
   phone: string | null;
   job_id: string | null;
+  photo_url: string | null;
 }
 
 const Recruiting = () => {
@@ -43,6 +44,7 @@ const Recruiting = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isPopulating, setIsPopulating] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -163,6 +165,44 @@ const Recruiting = () => {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const handlePopulateCandidates = async () => {
+    setIsPopulating(true);
+    try {
+      toast({
+        title: "Generazione in corso",
+        description: "Sto creando 50 candidati con foto AI. Questo richiederà circa 1 minuto...",
+      });
+
+      const { data, error } = await supabase.functions.invoke('populate-candidates');
+      
+      if (error) {
+        toast({
+          title: "Errore",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Completato!",
+          description: data.message,
+        });
+        // Reload candidates
+        if (selectedJob) {
+          loadCandidates(selectedJob.id);
+        }
+      }
+    } catch (error) {
+      console.error('Population error:', error);
+      toast({
+        title: "Errore",
+        description: "Errore durante la generazione dei candidati",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPopulating(false);
     }
   };
 
@@ -294,15 +334,26 @@ const Recruiting = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <Button 
-                onClick={handleSyncToAirtable} 
-                disabled={isSyncing}
-                variant="outline"
-                className="gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                {isSyncing ? 'Syncing...' : 'Sync to Airtable'}
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handlePopulateCandidates} 
+                  disabled={isPopulating}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isPopulating ? 'animate-spin' : ''}`} />
+                  {isPopulating ? 'Generando...' : 'Genera 50 Candidati'}
+                </Button>
+                <Button 
+                  onClick={handleSyncToAirtable} 
+                  disabled={isSyncing}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                  {isSyncing ? 'Syncing...' : 'Sync to Airtable'}
+                </Button>
+              </div>
             </div>
             {selectedJob?.description && (
               <div className="text-sm text-muted-foreground max-w-md">
@@ -315,11 +366,18 @@ const Recruiting = () => {
         <Card className="shadow-hover transition-smooth bg-gradient-card">
           <CardContent className="p-8 space-y-6">
             <div className="space-y-4">
-              <div className="flex items-start justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
                   <h2 className="text-3xl font-bold mb-2">{currentCandidate.name}</h2>
                   <p className="text-xl text-primary font-semibold">{currentCandidate.role}</p>
                 </div>
+                {currentCandidate.photo_url && (
+                  <img 
+                    src={currentCandidate.photo_url} 
+                    alt={currentCandidate.name}
+                    className="w-24 h-24 rounded-full object-cover border-2 border-primary/20"
+                  />
+                )}
                 {currentCandidate.experience_years && (
                   <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg">
                     <Award className="w-5 h-5 text-primary" />

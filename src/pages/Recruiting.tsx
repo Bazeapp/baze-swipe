@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 interface Lavoratore {
   id: string;
@@ -262,7 +263,9 @@ const Recruiting = () => {
             {currentLavoratore.feedback_ai && (
               <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
                 <h3 className="text-sm font-semibold text-muted-foreground mb-2">FEEDBACK AI</h3>
-                <p className="text-sm leading-relaxed whitespace-pre-line">{currentLavoratore.feedback_ai}</p>
+                <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
+                  <ReactMarkdown>{currentLavoratore.feedback_ai}</ReactMarkdown>
+                </div>
               </div>
             )}
 

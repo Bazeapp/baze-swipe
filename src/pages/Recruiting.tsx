@@ -35,6 +35,25 @@ const Recruiting = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const cleanFeedbackText = (text: string) => {
+    if (!text) return "";
+    
+    // Remove JSON wrapper if present
+    let cleaned = text;
+    const jsonMatch = text.match(/\{"state":"generated","value":"(.+)","isStale":(true|false)\}/);
+    if (jsonMatch) {
+      cleaned = jsonMatch[1];
+    }
+    
+    // Replace escaped newlines with actual newlines
+    cleaned = cleaned.replace(/\\n/g, "\n");
+    
+    // Remove any remaining escape characters
+    cleaned = cleaned.replace(/\\/g, "");
+    
+    return cleaned;
+  };
+
   useEffect(() => {
     checkAuth();
     loadLavoratori();
@@ -264,7 +283,7 @@ const Recruiting = () => {
               <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
                 <h3 className="text-sm font-semibold text-muted-foreground mb-2">FEEDBACK AI</h3>
                 <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
-                  <ReactMarkdown>{currentLavoratore.feedback_ai}</ReactMarkdown>
+                  <ReactMarkdown>{cleanFeedbackText(currentLavoratore.feedback_ai)}</ReactMarkdown>
                 </div>
               </div>
             )}

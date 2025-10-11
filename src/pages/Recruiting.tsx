@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw } from "lucide-react";
+import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Lavoratore {
   id: string;
@@ -123,6 +123,22 @@ const Recruiting = () => {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+      setShowRejectionInput(false);
+      setRejectionReason("");
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex < lavoratori.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+      setShowRejectionInput(false);
+      setRejectionReason("");
     }
   };
 
@@ -322,25 +338,49 @@ const Recruiting = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex gap-4 pt-4">
-                <Button
-                  onClick={() => handleDecision("no_pass")}
-                  variant="destructive"
-                  size="lg"
-                  className="flex-1 h-14 text-lg"
-                >
-                  <XCircle className="w-5 h-5 mr-2" />
-                  No Pass
-                </Button>
-                <Button
-                  onClick={() => handleDecision("pass")}
-                  size="lg"
-                  className="flex-1 h-14 text-lg bg-gradient-primary hover:opacity-90"
-                >
-                  <CheckCircle className="w-5 h-5 mr-2" />
-                  Pass
-                </Button>
-              </div>
+              <>
+                <div className="flex gap-4 pt-4">
+                  <Button
+                    onClick={() => handleDecision("no_pass")}
+                    variant="destructive"
+                    size="lg"
+                    className="flex-1 h-14 text-lg"
+                  >
+                    <XCircle className="w-5 h-5 mr-2" />
+                    No Pass
+                  </Button>
+                  <Button
+                    onClick={() => handleDecision("pass")}
+                    size="lg"
+                    className="flex-1 h-14 text-lg bg-gradient-primary hover:opacity-90"
+                  >
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Pass
+                  </Button>
+                </div>
+                <div className="flex gap-2 pt-4 border-t mt-4">
+                  <Button
+                    onClick={handlePrevious}
+                    variant="outline"
+                    size="lg"
+                    disabled={currentIndex === 0}
+                    className="flex-1"
+                  >
+                    <ChevronLeft className="w-5 h-5 mr-2" />
+                    Precedente
+                  </Button>
+                  <Button
+                    onClick={handleNext}
+                    variant="outline"
+                    size="lg"
+                    disabled={currentIndex === lavoratori.length - 1}
+                    className="flex-1"
+                  >
+                    Successivo
+                    <ChevronRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

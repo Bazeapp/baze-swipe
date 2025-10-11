@@ -105,8 +105,8 @@ Deno.serve(async (req) => {
           job_id: defaultJobId,
           status: 'pending',
           airtable_id: airtableId,
-          stato_selezione: fields.stato_selezione,
-          stato_processo_res: fields.stato_processo_res
+          stato_selezione: Array.isArray(fields.stato_selezione) ? fields.stato_selezione[0] : fields.stato_selezione,
+          stato_processo_res: Array.isArray(fields.stato_processo_res) ? fields.stato_processo_res[0] : fields.stato_processo_res
         }
 
         // Check if record already exists by airtable_id

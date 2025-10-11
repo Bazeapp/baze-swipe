@@ -93,8 +93,16 @@ Deno.serve(async (req) => {
           fields.riassunto_referenze ? `REFERENZE:\n${fields.riassunto_referenze}` : ''
         ].filter(Boolean).join('\n\n')
 
+        // Get nome from reference field - try nome_lavoratore first, then fallback to lavoratore
+        let nome = 'Nome non specificato'
+        if (fields.nome_lavoratore) {
+          nome = Array.isArray(fields.nome_lavoratore) ? fields.nome_lavoratore[0] : fields.nome_lavoratore
+        } else if (fields.lavoratore) {
+          nome = Array.isArray(fields.lavoratore) ? fields.lavoratore[0] : fields.lavoratore
+        }
+
         const lavoratore: Lavoratore = {
-          nome: fields.lavoratore || 'Nome non specificato',
+          nome,
           eta: Array.isArray(fields.eta_lavoratore) ? fields.eta_lavoratore[0] : fields.eta_lavoratore,
           foto_url: fields.foto_lavoratore?.[0]?.url,
           travel_time: fields.travel_time_tra_cap,

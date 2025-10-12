@@ -85,6 +85,28 @@ const Recruiting = () => {
     return cleaned;
   };
 
+  const cleanMansioniText = (text: string) => {
+    if (!text) return "";
+    
+    let cleaned = text;
+    
+    // Remove array brackets at start and end
+    cleaned = cleaned.replace(/^\[|\]$/g, "");
+    
+    // Remove quotes around items
+    cleaned = cleaned.replace(/^["']|["']$/g, "");
+    cleaned = cleaned.replace(/",\s*"/g, "\n");
+    cleaned = cleaned.replace(/'",\s*"/g, "\n");
+    
+    // Replace escaped newlines with actual newlines
+    cleaned = cleaned.replace(/\\n/g, "\n");
+    
+    // Remove any remaining escape characters
+    cleaned = cleaned.replace(/\\"/g, '"');
+    
+    return cleaned;
+  };
+
   useEffect(() => {
     checkAuth();
     loadProcessiRes();
@@ -404,7 +426,7 @@ const Recruiting = () => {
                 {currentLavoratore.mansioni_richieste_transformed_ai && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">MANSIONI</label>
-                    <p className="text-sm mt-1 whitespace-pre-line">{currentLavoratore.mansioni_richieste_transformed_ai}</p>
+                    <p className="text-sm mt-1 whitespace-pre-line">{cleanMansioniText(currentLavoratore.mansioni_richieste_transformed_ai)}</p>
                   </div>
                 )}
               </div>
@@ -443,7 +465,7 @@ const Recruiting = () => {
               </div>
 
               {/* Feedback AI */}
-              {currentLavoratore.feedback_ai && (
+              {currentLavoratore.feedback_ai && currentLavoratore.feedback_ai.trim() !== "" && currentLavoratore.feedback_ai !== "null" && (
                 <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
                   <h3 className="text-sm font-semibold text-muted-foreground mb-2">FEEDBACK AI</h3>
                   <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">

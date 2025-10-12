@@ -25,19 +25,6 @@ const cleanText = (text: string | null) => {
   
   let cleaned = text;
 
-  // Try to parse as JSON first (for fields like feedback_ai structure)
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (parsed.state === "empty" || !parsed.value || parsed.value === null) {
-      return "Non disponibile";
-    }
-    if (parsed.state === "generated" && parsed.value) {
-      cleaned = parsed.value;
-    }
-  } catch (e) {
-    // Not JSON, continue with text cleaning
-  }
-
   // Remove array brackets at start and end
   cleaned = cleaned.replace(/^\[|\]$/g, "");
 

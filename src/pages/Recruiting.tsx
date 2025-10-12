@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { SourceDataDrawer } from "@/components/SourceDataDrawer";
+import { DecisionDialog } from "@/components/DecisionDialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import bazeLogo from "@/assets/baze-logo.svg";
 interface Lavoratore {
@@ -51,6 +52,8 @@ const Recruiting = () => {
   const [showFeedbackEdit, setShowFeedbackEdit] = useState(false);
   const [editedFeedback, setEditedFeedback] = useState("");
   const [feedbackIssue, setFeedbackIssue] = useState("");
+  const [decisionDialogOpen, setDecisionDialogOpen] = useState(false);
+  const [pendingDecision, setPendingDecision] = useState<"pass" | "no_pass" | null>(null);
   const navigate = useNavigate();
   const {
     toast
@@ -177,29 +180,46 @@ const Recruiting = () => {
       setLoading(false);
     }
   };
-  const handleDecision = async (decision: "pass" | "no_pass") => {
+  const handleDecisionClick = (decision: "pass" | "no_pass") => {
     if (decision === "no_pass" && !showRejectionInput) {
       setShowRejectionInput(true);
       return;
     }
+
     if (decision === "no_pass" && !rejectionReason.trim()) {
       toast({
-        title: "Rejection reason required",
-        description: "Please provide a reason for rejection",
+        title: "Motivo richiesto",
+        description: "Inserisci un motivo per il rifiuto",
         variant: "destructive"
       });
       return;
     }
-    const currentLavoratore = lavoratori[currentIndex];
-    if (!currentLavoratore) return;
 
-    // PROTOTIPO: Simulazione senza salvataggio
-    toast({
-      title: decision === "pass" ? "Candidata Approvata" : "Candidata Rifiutata",
-      description: `${currentLavoratore.nome} è stata ${decision === "pass" ? "approvata" : "rifiutata"} (simulazione)`
+    setPendingDecision(decision);
+    setDecisionDialogOpen(true);
+  };
+
+  const handleConfirmDecision = async (selectedFlags: string[]) => {
+    const currentLavoratore = lavoratori[currentIndex];
+    if (!currentLavoratore || !pendingDecision) return;
+
+    console.log("Decision confirmed:", {
+      candidate: currentLavoratore.nome,
+      decision: pendingDecision,
+      selectedFlags,
+      flagType: pendingDecision === "pass" ? "green_flags" : "red_flags",
+      rejectionReason: pendingDecision === "no_pass" ? rejectionReason : null,
     });
-    setRejectionReason("");
+
+    toast({
+      title: pendingDecision === "pass" ? "Candidata Approvata" : "Candidata Rifiutata",
+      description: `${currentLavoratore.nome} è stata ${pendingDecision === "pass" ? "approvata" : "rifiutata"} con ${selectedFlags.length} ${pendingDecision === "pass" ? "green flags" : "red flags"} (simulazione)`
+    });
+
     setShowRejectionInput(false);
+    setRejectionReason("");
+    setDecisionDialogOpen(false);
+    setPendingDecision(null);
     setCurrentIndex(prev => prev + 1);
   };
   const handleSyncToAirtable = async () => {
@@ -463,7 +483,7 @@ const Recruiting = () => {
               {showRejectionInput ? <div className="space-y-3">
                   <label className="text-sm font-medium text-foreground">Motivo No Pass</label>
                   <Textarea placeholder="Perché questo candidato non è adatto?" value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} className="min-h-[100px] border-input bg-background" />
-                  <Button onClick={() => handleDecision("no_pass")} variant="destructive" className="w-full h-11 font-medium">
+                  <Button onClick={() => handleDecisionClick("no_pass")} variant="destructive" className="w-full h-11 font-medium">
                     <XCircle className="w-4 h-4 mr-2" />
                     Conferma Rifiuto
                   </Button>
@@ -474,11 +494,11 @@ const Recruiting = () => {
                     Annulla
                   </Button>
                 </div> : <div className="space-y-2">
-                  <Button onClick={() => handleDecision("pass")} className="w-full h-11 bg-success hover:bg-success/90 text-white font-medium">
+                  <Button onClick={() => handleDecisionClick("pass")} className="w-full h-11 bg-success hover:bg-success/90 text-white font-medium">
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Pass
                   </Button>
-                  <Button onClick={() => handleDecision("no_pass")} variant="destructive" className="w-full h-11 font-medium">
+                  <Button onClick={() => handleDecisionClick("no_pass")} variant="destructive" className="w-full h-11 font-medium">
                     <XCircle className="w-4 h-4 mr-2" />
                     No Pass
                   </Button>
@@ -493,6 +513,15 @@ const Recruiting = () => {
         open={showSourceData}
         onOpenChange={setShowSourceData}
         lavoratore={currentLavoratore}
+      />
+
+      {/* Decision Dialog with Fact-Check */}
+      <DecisionDialog
+        open={decisionDialogOpen}
+        onOpenChange={setDecisionDialogOpen}
+        lavoratore={currentLavoratore}
+        decisionType={pendingDecision}
+        onConfirm={handleConfirmDecision}
       />
 
       {/* Feedback Issue Dialog */}

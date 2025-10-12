@@ -21,6 +21,10 @@ interface Lavoratore {
   annuncio_nucleo_famigliare?: string
   mansioni_richieste_transformed_ai?: string
   mansioni_richieste?: string
+  chi_sono?: string
+  riassunto_profilo_breve?: string
+  intervista_llm_transcript_history?: string
+  descrizione_ricerca_famiglia?: string
   job_id?: string
   status: string
   airtable_id: string
@@ -118,6 +122,10 @@ Deno.serve(async (req) => {
           annuncio_nucleo_famigliare: Array.isArray(fields.annuncio_nucleo_famigliare) ? fields.annuncio_nucleo_famigliare[0] : fields.annuncio_nucleo_famigliare,
           mansioni_richieste_transformed_ai: fields.mansioni_richieste_transformed_ai,
           mansioni_richieste: Array.isArray(fields['mansioni_richieste (from processo_res)']) ? fields['mansioni_richieste (from processo_res)'][0] : fields['mansioni_richieste (from processo_res)'],
+          chi_sono: Array.isArray(fields['chi_sono (from lavoratore)']) ? fields['chi_sono (from lavoratore)'][0] : fields['chi_sono (from lavoratore)'],
+          riassunto_profilo_breve: fields.riassunto_profilo_breve,
+          intervista_llm_transcript_history: fields.intervista_llm_transcript_history,
+          descrizione_ricerca_famiglia: Array.isArray(fields['descrizione_ricerca_famiglia (from processo_res)']) ? fields['descrizione_ricerca_famiglia (from processo_res)'][0] : fields['descrizione_ricerca_famiglia (from processo_res)'],
           job_id: defaultJobId,
           status: 'pending',
           airtable_id: airtableId,

@@ -157,19 +157,23 @@ export type Database = {
           annuncio_luogo_riferimento_pubblico: string | null
           annuncio_nucleo_famigliare: string | null
           annuncio_orario_di_lavoro: string | null
+          chi_sono: string | null
           created_at: string
           descrizione_personale: string | null
+          descrizione_ricerca_famiglia: string | null
           email_processo_res_famiglia: string | null
           eta: number | null
           feedback_ai: string | null
           foto_url: string | null
           id: string
+          intervista_llm_transcript_history: string | null
           job_id: string | null
           mansioni_richieste: string | null
           mansioni_richieste_transformed_ai: string | null
           nome: string
           processo_res: string | null
           riassunto_esperienze_completo: string | null
+          riassunto_profilo_breve: string | null
           stato_processo_res: string | null
           stato_selezione: string | null
           status: string
@@ -182,19 +186,23 @@ export type Database = {
           annuncio_luogo_riferimento_pubblico?: string | null
           annuncio_nucleo_famigliare?: string | null
           annuncio_orario_di_lavoro?: string | null
+          chi_sono?: string | null
           created_at?: string
           descrizione_personale?: string | null
+          descrizione_ricerca_famiglia?: string | null
           email_processo_res_famiglia?: string | null
           eta?: number | null
           feedback_ai?: string | null
           foto_url?: string | null
           id?: string
+          intervista_llm_transcript_history?: string | null
           job_id?: string | null
           mansioni_richieste?: string | null
           mansioni_richieste_transformed_ai?: string | null
           nome: string
           processo_res?: string | null
           riassunto_esperienze_completo?: string | null
+          riassunto_profilo_breve?: string | null
           stato_processo_res?: string | null
           stato_selezione?: string | null
           status?: string
@@ -207,19 +215,23 @@ export type Database = {
           annuncio_luogo_riferimento_pubblico?: string | null
           annuncio_nucleo_famigliare?: string | null
           annuncio_orario_di_lavoro?: string | null
+          chi_sono?: string | null
           created_at?: string
           descrizione_personale?: string | null
+          descrizione_ricerca_famiglia?: string | null
           email_processo_res_famiglia?: string | null
           eta?: number | null
           feedback_ai?: string | null
           foto_url?: string | null
           id?: string
+          intervista_llm_transcript_history?: string | null
           job_id?: string | null
           mansioni_richieste?: string | null
           mansioni_richieste_transformed_ai?: string | null
           nome?: string
           processo_res?: string | null
           riassunto_esperienze_completo?: string | null
+          riassunto_profilo_breve?: string | null
           stato_processo_res?: string | null
           stato_selezione?: string | null
           status?: string

@@ -6,8 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw } from "lucide-react";
+import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { SourceDataDrawer } from "@/components/SourceDataDrawer";
 interface Lavoratore {
   id: string;
   nome: string;
@@ -25,6 +26,10 @@ interface Lavoratore {
   annuncio_nucleo_famigliare: string | null;
   mansioni_richieste_transformed_ai: string | null;
   mansioni_richieste: string | null;
+  chi_sono: string | null;
+  riassunto_profilo_breve: string | null;
+  intervista_llm_transcript_history: string | null;
+  descrizione_ricerca_famiglia: string | null;
   job_id: string | null;
   status: string;
   stato_selezione: string | null;
@@ -40,6 +45,7 @@ const Recruiting = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [processiRes, setProcessiRes] = useState<string[]>([]);
   const [selectedProcesso, setSelectedProcesso] = useState<string>("all");
+  const [showSourceData, setShowSourceData] = useState(false);
   const navigate = useNavigate();
   const {
     toast
@@ -361,7 +367,18 @@ const Recruiting = () => {
 
               {/* Feedback AI */}
               {currentLavoratore.feedback_ai && cleanFeedbackText(currentLavoratore.feedback_ai) && <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">FEEDBACK AI</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-muted-foreground">FEEDBACK AI</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowSourceData(true)}
+                      className="gap-2 h-7 text-xs"
+                    >
+                      <FileText className="w-3 h-3" />
+                      Fact-Check
+                    </Button>
+                  </div>
                   <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
                     <ReactMarkdown>{cleanFeedbackText(currentLavoratore.feedback_ai)}</ReactMarkdown>
                   </div>
@@ -407,6 +424,13 @@ const Recruiting = () => {
           </Card>
         </div>
       </div>
+
+      {/* Source Data Drawer */}
+      <SourceDataDrawer
+        open={showSourceData}
+        onOpenChange={setShowSourceData}
+        lavoratore={currentLavoratore}
+      />
     </div>;
 };
 export default Recruiting;

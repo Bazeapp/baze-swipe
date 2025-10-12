@@ -17,7 +17,7 @@ interface Lavoratore {
   travel_time: string | null;
   travel_time_tra_cap: string | null;
   descrizione_personale: string | null;
-  riassunto_esperienza_referenze: string | null;
+  riassunto_esperienze_completo: string | null;
   feedback_ai: string | null;
   processo_res: string | null;
   email_processo_res_famiglia: string | null;
@@ -421,10 +421,10 @@ const Recruiting = () => {
               </div>
 
               {/* Esperienza */}
-              {currentLavoratore.riassunto_esperienza_referenze && (
+              {currentLavoratore.riassunto_esperienze_completo && (
                 <div>
                   <h3 className="text-sm font-semibold text-muted-foreground mb-2">ESPERIENZA</h3>
-                  <p className="text-sm leading-relaxed whitespace-pre-line">{currentLavoratore.riassunto_esperienza_referenze}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-line">{currentLavoratore.riassunto_esperienze_completo}</p>
                 </div>
               )}
 

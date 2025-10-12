@@ -12,7 +12,7 @@ interface Lavoratore {
   travel_time?: string
   travel_time_tra_cap?: string
   descrizione_personale?: string
-  riassunto_esperienza_referenze?: string
+  riassunto_esperienze_completo?: string
   feedback_ai?: string
   processo_res?: string
   email_processo_res_famiglia?: string
@@ -93,12 +93,6 @@ Deno.serve(async (req) => {
         console.log(`Processing processo_res: ${processoRes}, record: ${airtableId}`)
         console.log('Available fields:', Object.keys(fields))
 
-        // Combina esperienza e referenze
-        const esperienzaReferenze = [
-          fields.riassunto_esperienze ? `ESPERIENZA:\n${fields.riassunto_esperienze}` : '',
-          fields.riassunto_referenze ? `REFERENZE:\n${fields.riassunto_referenze}` : ''
-        ].filter(Boolean).join('\n\n')
-
         // Get nome from reference field - try nome_lavoratore first, then fallback to lavoratore
         let nome = 'Nome non specificato'
         if (fields.nome_lavoratore) {
@@ -114,7 +108,7 @@ Deno.serve(async (req) => {
           travel_time: fields.travel_time_tra_cap,
           travel_time_tra_cap: fields.travel_time_tra_cap,
           descrizione_personale: fields.chi_sono,
-          riassunto_esperienza_referenze: esperienzaReferenze || undefined,
+          riassunto_esperienze_completo: fields.riassunto_esperienze_completo,
           feedback_ai: fields.ai_agent_profiler,
           processo_res: processoRes,
           email_processo_res_famiglia: Array.isArray(fields.email_processo_res_famiglia) ? fields.email_processo_res_famiglia[0] : fields.email_processo_res_famiglia,

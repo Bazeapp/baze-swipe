@@ -11,7 +11,6 @@ interface Lavoratore {
   foto_url?: string
   travel_time?: string
   travel_time_tra_cap?: string
-  assigned_recruiter_id?: string
   descrizione_personale?: string
   riassunto_esperienze_completo?: string
   feedback_ai?: string
@@ -39,57 +38,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Authenticate user
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      console.error('[SECURITY] Missing authorization header')
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Verify user token
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
-
-    if (authError || !user) {
-      console.error('[SECURITY] Invalid or expired token:', authError?.message)
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Check if user has admin role
-    const { data: roleData } = await supabaseClient
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle()
-
-    if (!roleData) {
-      console.error(`[SECURITY] User ${user.id} attempted to sync without admin privileges`)
-      return new Response(
-        JSON.stringify({ error: 'Insufficient permissions. Admin role required.' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log(`[AUDIT] Airtable sync initiated by admin user ${user.id} at ${new Date().toISOString()}`)
-
     const AIRTABLE_API_KEY = Deno.env.get('AIRTABLE_API_KEY')
     const AIRTABLE_BASE_ID = Deno.env.get('AIRTABLE_BASE_ID')
     
     if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
       throw new Error('Missing Airtable credentials')
     }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
     // Fetch records from Airtable using the "[🔒] Lovable Tinder Database" view
     const airtableUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/lavoratori_selezionati?view=${encodeURIComponent('[🔒] Lovable Tinder Database')}`
@@ -156,7 +115,6 @@ Deno.serve(async (req) => {
           foto_url: fields.foto_lavoratore?.[0]?.url,
           travel_time: fields.travel_time_tra_cap,
           travel_time_tra_cap: fields.travel_time_tra_cap,
-          assigned_recruiter_id: user.id,
           descrizione_personale: fields.chi_sono,
           riassunto_esperienze_completo: fields.riassunto_esperienze_completo,
           feedback_ai: fields.ai_agent_profiler,

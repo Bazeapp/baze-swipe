@@ -16,7 +16,6 @@ export type Database = {
     Tables: {
       candidates: {
         Row: {
-          assigned_recruiter_id: string | null
           created_at: string
           email: string
           experience_years: number | null
@@ -34,7 +33,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          assigned_recruiter_id?: string | null
           created_at?: string
           email: string
           experience_years?: number | null
@@ -52,7 +50,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          assigned_recruiter_id?: string | null
           created_at?: string
           email?: string
           experience_years?: number | null
@@ -160,7 +157,6 @@ export type Database = {
           annuncio_luogo_riferimento_pubblico: string | null
           annuncio_nucleo_famigliare: string | null
           annuncio_orario_di_lavoro: string | null
-          assigned_recruiter_id: string | null
           chi_sono: string | null
           created_at: string
           descrizione_personale: string | null
@@ -190,7 +186,6 @@ export type Database = {
           annuncio_luogo_riferimento_pubblico?: string | null
           annuncio_nucleo_famigliare?: string | null
           annuncio_orario_di_lavoro?: string | null
-          assigned_recruiter_id?: string | null
           chi_sono?: string | null
           created_at?: string
           descrizione_personale?: string | null
@@ -220,7 +215,6 @@ export type Database = {
           annuncio_luogo_riferimento_pubblico?: string | null
           annuncio_nucleo_famigliare?: string | null
           annuncio_orario_di_lavoro?: string | null
-          assigned_recruiter_id?: string | null
           chi_sono?: string | null
           created_at?: string
           descrizione_personale?: string | null
@@ -276,42 +270,15 @@ export type Database = {
         }
         Relationships: []
       }
-      user_roles: {
-        Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "recruiter" | "user"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -438,8 +405,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "recruiter", "user"],
-    },
+    Enums: {},
   },
 } as const

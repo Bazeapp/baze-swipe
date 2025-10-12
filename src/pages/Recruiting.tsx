@@ -199,21 +199,21 @@ const Recruiting = () => {
     setDecisionDialogOpen(true);
   };
 
-  const handleConfirmDecision = async (selectedFlags: string[]) => {
+  const handleConfirmDecision = async (highlights: Array<{text: string, fieldId: string}>) => {
     const currentLavoratore = lavoratori[currentIndex];
     if (!currentLavoratore || !pendingDecision) return;
 
     console.log("Decision confirmed:", {
       candidate: currentLavoratore.nome,
       decision: pendingDecision,
-      selectedFlags,
+      highlights,
       flagType: pendingDecision === "pass" ? "green_flags" : "red_flags",
       rejectionReason: pendingDecision === "no_pass" ? rejectionReason : null,
     });
 
     toast({
       title: pendingDecision === "pass" ? "Candidata Approvata" : "Candidata Rifiutata",
-      description: `${currentLavoratore.nome} è stata ${pendingDecision === "pass" ? "approvata" : "rifiutata"} con ${selectedFlags.length} ${pendingDecision === "pass" ? "green flags" : "red flags"} (simulazione)`
+      description: `${currentLavoratore.nome} è stata ${pendingDecision === "pass" ? "approvata" : "rifiutata"} con ${highlights.length} ${pendingDecision === "pass" ? "green flags" : "red flags"} (simulazione)`
     });
 
     setShowRejectionInput(false);

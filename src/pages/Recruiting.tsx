@@ -180,37 +180,16 @@ const Recruiting = () => {
       return;
     }
     const currentLavoratore = lavoratori[currentIndex];
-    if (!currentLavoratore || !user) return;
-    try {
-      const {
-        error: decisionError
-      } = await supabase.from("decisions").insert({
-        candidate_id: currentLavoratore.id,
-        recruiter_id: user.id,
-        decision,
-        rejection_reason: decision === "no_pass" ? rejectionReason : null
-      });
-      if (decisionError) throw decisionError;
-      const {
-        error: updateError
-      } = await supabase.from("lavoratori_selezionati").update({
-        status: decision === "pass" ? "passed" : "rejected"
-      }).eq("id", currentLavoratore.id);
-      if (updateError) throw updateError;
-      toast({
-        title: decision === "pass" ? "Candidata Approvata" : "Candidata Rifiutata",
-        description: `${currentLavoratore.nome} è stata ${decision === "pass" ? "approvata" : "rifiutata"}`
-      });
-      setRejectionReason("");
-      setShowRejectionInput(false);
-      setCurrentIndex(prev => prev + 1);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
+    if (!currentLavoratore) return;
+
+    // PROTOTIPO: Simulazione senza salvataggio
+    toast({
+      title: decision === "pass" ? "Candidata Approvata" : "Candidata Rifiutata",
+      description: `${currentLavoratore.nome} è stata ${decision === "pass" ? "approvata" : "rifiutata"} (simulazione)`
+    });
+    setRejectionReason("");
+    setShowRejectionInput(false);
+    setCurrentIndex(prev => prev + 1);
   };
   const handleSyncToAirtable = async () => {
     setIsSyncing(true);

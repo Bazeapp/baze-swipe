@@ -101,7 +101,7 @@ export function SourceDataDrawer({ open, onOpenChange, lavoratore }: SourceDataD
       category: "Colloquio",
       color: "bg-orange-500/10 text-orange-700"
     }
-  ].filter(field => field.content && field.content !== "Non disponibile");
+  ];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

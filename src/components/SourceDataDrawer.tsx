@@ -71,18 +71,6 @@ export function SourceDataDrawer({ open, onOpenChange, lavoratore }: SourceDataD
       color: "bg-purple-500/10 text-purple-700"
     },
     {
-      title: "Mansioni Richieste",
-      content: cleanText(lavoratore.mansioni_richieste),
-      category: "Annuncio",
-      color: "bg-green-500/10 text-green-700"
-    },
-    {
-      title: "Descrizione Ricerca Famiglia",
-      content: cleanText(lavoratore.descrizione_ricerca_famiglia),
-      category: "Annuncio",
-      color: "bg-green-500/10 text-green-700"
-    },
-    {
       title: "Transcript Intervista",
       content: cleanText(lavoratore.intervista_llm_transcript_history),
       category: "Colloquio",

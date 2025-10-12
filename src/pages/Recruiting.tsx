@@ -107,18 +107,15 @@ const Recruiting = () => {
       if (parsed.state === "empty" || !parsed.value || parsed.value === null) {
         return "";
       }
+      // Extract and clean the value from the JSON
       if (parsed.value) {
-        return parsed.value;
+        return parsed.value.replace(/\\n/g, "\n");
       }
     } catch (e) {
-      // Not JSON, try regex match as fallback
-      const jsonMatch = text.match(/\{"state":"generated","value":"(.+?)","isStale":(true|false)\}/s);
-      if (jsonMatch) {
-        return jsonMatch[1].replace(/\\n/g, "\n");
-      }
+      // Not JSON, return the text as-is with newline replacement
+      return text.replace(/\\n/g, "\n");
     }
     
-    // If no JSON format, just return the text cleaned
     return text;
   };
 

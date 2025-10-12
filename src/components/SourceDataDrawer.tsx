@@ -20,53 +20,75 @@ interface SourceDataDrawerProps {
   lavoratore: Lavoratore | null;
 }
 
+const cleanText = (text: string | null) => {
+  if (!text) return "Non disponibile";
+  
+  let cleaned = text;
+
+  // Remove array brackets at start and end
+  cleaned = cleaned.replace(/^\[|\]$/g, "");
+
+  // Remove quotes around array elements
+  cleaned = cleaned.replace(/^["']|["']$/g, "");
+  cleaned = cleaned.replace(/",\s*"/g, "\n\n");
+  cleaned = cleaned.replace(/"$/g, "");
+
+  // Replace escaped newlines with actual newlines
+  cleaned = cleaned.replace(/\\n/g, "\n");
+
+  // Remove any remaining escape characters except newlines
+  cleaned = cleaned.replace(/\\"/g, '"');
+  
+  return cleaned;
+};
+
 export function SourceDataDrawer({ open, onOpenChange, lavoratore }: SourceDataDrawerProps) {
   if (!lavoratore) return null;
 
   const sourceFields = [
     {
       title: "Chi Sono",
-      content: lavoratore.chi_sono,
+      content: cleanText(lavoratore.chi_sono),
       category: "Profilo",
       color: "bg-blue-500/10 text-blue-700"
     },
     {
       title: "Riassunto Profilo Breve",
-      content: lavoratore.riassunto_profilo_breve,
+      content: cleanText(lavoratore.riassunto_profilo_breve),
       category: "Profilo",
       color: "bg-blue-500/10 text-blue-700"
     },
     {
       title: "Descrizione Personale",
-      content: lavoratore.descrizione_personale,
+      content: cleanText(lavoratore.descrizione_personale),
       category: "Profilo",
       color: "bg-blue-500/10 text-blue-700"
     },
     {
       title: "Riassunto Esperienze Completo",
-      content: lavoratore.riassunto_esperienze_completo,
+      content: cleanText(lavoratore.riassunto_esperienze_completo),
       category: "Esperienza",
       color: "bg-purple-500/10 text-purple-700"
     },
     {
       title: "Mansioni Richieste",
-      content: lavoratore.mansioni_richieste,
+      content: cleanText(lavoratore.mansioni_richieste),
       category: "Annuncio",
       color: "bg-green-500/10 text-green-700"
     },
     {
       title: "Descrizione Ricerca Famiglia",
-      content: lavoratore.descrizione_ricerca_famiglia,
+      content: cleanText(lavoratore.descrizione_ricerca_famiglia),
       category: "Annuncio",
       color: "bg-green-500/10 text-green-700"
     },
     {
       title: "Transcript Intervista",
-      content: lavoratore.intervista_llm_transcript_history,
+      content: cleanText(lavoratore.intervista_llm_transcript_history),
       category: "Colloquio",
       color: "bg-orange-500/10 text-orange-700"
     }
-  ].filter(field => field.content);
+  ].filter(field => field.content !== "Non disponibile");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -92,7 +114,7 @@ export function SourceDataDrawer({ open, onOpenChange, lavoratore }: SourceDataD
                 </div>
                 <div className="bg-muted/30 rounded-lg p-4">
                   <p className="text-sm whitespace-pre-line leading-relaxed">
-                    {field.content || "Non disponibile"}
+                    {field.content}
                   </p>
                 </div>
                 {index < sourceFields.length - 1 && <Separator className="mt-4" />}

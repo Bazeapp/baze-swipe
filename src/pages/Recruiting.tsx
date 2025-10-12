@@ -47,7 +47,20 @@ const Recruiting = () => {
   const cleanFeedbackText = (text: string) => {
     if (!text) return "";
     
-    // Remove JSON wrapper if present
+    // Try to parse as JSON first
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.state === "empty" || !parsed.value || parsed.value === null) {
+        return "";
+      }
+      if (parsed.state === "generated" && parsed.value) {
+        text = parsed.value;
+      }
+    } catch (e) {
+      // Not JSON, continue with text cleaning
+    }
+    
+    // Remove JSON wrapper if present (fallback)
     let cleaned = text;
     const jsonMatch = text.match(/\{"state":"generated","value":"(.+)","isStale":(true|false)\}/);
     if (jsonMatch) {
@@ -87,6 +100,19 @@ const Recruiting = () => {
 
   const cleanMansioniText = (text: string) => {
     if (!text) return "";
+    
+    // Try to parse as JSON first
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.state === "empty" || !parsed.value || parsed.value === null) {
+        return "";
+      }
+      if (parsed.state === "generated" && parsed.value) {
+        text = parsed.value;
+      }
+    } catch (e) {
+      // Not JSON, continue with text cleaning
+    }
     
     let cleaned = text;
     
@@ -465,7 +491,7 @@ const Recruiting = () => {
               </div>
 
               {/* Feedback AI */}
-              {currentLavoratore.feedback_ai && currentLavoratore.feedback_ai.trim() !== "" && currentLavoratore.feedback_ai !== "null" && (
+              {currentLavoratore.feedback_ai && cleanFeedbackText(currentLavoratore.feedback_ai) && (
                 <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
                   <h3 className="text-sm font-semibold text-muted-foreground mb-2">FEEDBACK AI</h3>
                   <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">

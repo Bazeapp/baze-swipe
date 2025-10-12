@@ -313,38 +313,43 @@ const Recruiting = () => {
         </Card>
       </div>;
   }
-  return <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 p-4">
-      <div className="max-w-7xl mx-auto py-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <img src={bazeLogo} alt="Baze" className="h-8" />
-            <div className="h-8 w-px bg-border" />
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Recruiting Dashboard</h1>
-              <p className="text-sm text-muted-foreground">
-                Profilo {currentIndex + 1} di {lavoratori.length}
-              </p>
+  return <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="bg-card border-b border-border">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <img src={bazeLogo} alt="Baze" className="h-8" />
+              <div className="h-6 w-px bg-border" />
+              <div>
+                <h1 className="text-xl font-semibold text-foreground">Recruiting Dashboard</h1>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Profilo {currentIndex + 1} di {lavoratori.length}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 items-center">
+              <Button onClick={handleSyncToAirtable} disabled={isSyncing} variant="outline" size="sm" className="gap-2 text-muted-foreground border-input hover:bg-muted">
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Sync...' : 'Import'}
+              </Button>
+              <Button onClick={handleLogout} variant="ghost" size="sm" className="text-muted-foreground">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
             </div>
           </div>
-          <div className="flex gap-2 items-center">
-            <Button onClick={handleSyncToAirtable} disabled={isSyncing} variant="outline" size="sm" className="gap-2">
-              <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Sync...' : 'Import'}
-            </Button>
-            <Button onClick={handleLogout} variant="outline" size="sm">
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
-          </div>
         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-6">
 
         {/* Main Layout - 3 columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Left: Job Info */}
-          <Card className="lg:col-span-3 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-shadow">
-            <CardContent className="p-4 space-y-4">
-              <h2 className="text-lg font-semibold mb-4">Ricerca attiva</h2>
+          <Card className="lg:col-span-3 border-border hover:shadow-[var(--shadow-hover)] transition-shadow">
+            <CardContent className="p-5 space-y-4">
+              <h2 className="text-base font-semibold text-foreground mb-4">Ricerca attiva</h2>
               
               <div className="space-y-3">
                 <div>
@@ -390,14 +395,14 @@ const Recruiting = () => {
           </Card>
 
           {/* Center: Candidate Profile */}
-          <Card className="lg:col-span-6 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-shadow">
-            <CardContent className="p-6 space-y-4">
+          <Card className="lg:col-span-6 border-border hover:shadow-[var(--shadow-hover)] transition-shadow">
+            <CardContent className="p-6 space-y-5">
               {/* Header with photo, name and status */}
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4 flex-1">
-                  {currentLavoratore.foto_url && <img src={currentLavoratore.foto_url} alt={currentLavoratore.nome} className="w-20 h-20 rounded-full object-cover border-2 border-primary/20" />}
+                  {currentLavoratore.foto_url && <img src={currentLavoratore.foto_url} alt={currentLavoratore.nome} className="w-20 h-20 rounded-full object-cover border-2 border-border" />}
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold">{currentLavoratore.nome}</h2>
+                    <h2 className="text-2xl font-semibold text-foreground">{currentLavoratore.nome}</h2>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                       {currentLavoratore.eta && <span>{currentLavoratore.eta} anni</span>}
                       {currentLavoratore.eta && currentLavoratore.travel_time_tra_cap && <span>•</span>}
@@ -405,30 +410,30 @@ const Recruiting = () => {
                     </div>
                   </div>
                 </div>
-                {currentLavoratore.stato_selezione && <div className="px-3 py-1 bg-primary/10 text-primary rounded-md text-sm font-medium whitespace-nowrap">
+                {currentLavoratore.stato_selezione && <div className="px-3 py-1.5 bg-accent text-accent-foreground rounded-md text-xs font-medium whitespace-nowrap">
                     {currentLavoratore.stato_selezione}
                   </div>}
               </div>
 
               {/* Feedback AI */}
-              {currentLavoratore.feedback_ai && cleanFeedbackText(currentLavoratore.feedback_ai) && <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-muted-foreground">FEEDBACK AI</h3>
+              {currentLavoratore.feedback_ai && cleanFeedbackText(currentLavoratore.feedback_ai) && <div className="bg-accent/50 rounded-lg p-4 border border-border">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Feedback AI</h3>
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={handleReportFeedbackIssue}
-                        className="gap-2 h-7 text-xs"
+                        className="gap-1.5 h-7 text-xs text-muted-foreground border-input hover:bg-muted"
                       >
                         <AlertCircle className="w-3 h-3" />
-                        Segnala Errore
+                        Segnala
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setShowSourceData(true)}
-                        className="gap-2 h-7 text-xs"
+                        className="gap-1.5 h-7 text-xs text-muted-foreground border-input hover:bg-muted"
                       >
                         <FileText className="w-3 h-3" />
                         Fact-Check
@@ -442,38 +447,40 @@ const Recruiting = () => {
 
               {/* Esperienza */}
               {currentLavoratore.riassunto_esperienze_completo && <div>
-                  <h3 className="text-sm font-semibold mb-2 text-[#0047a9]">ESPERIENZA</h3>
-                  <p className="leading-relaxed whitespace-pre-line text-[16px] font-medium">{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</p>
+                  <h3 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Esperienza</h3>
+                  <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                    <ReactMarkdown>{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</ReactMarkdown>
+                  </div>
                 </div>}
             </CardContent>
           </Card>
 
           {/* Right: Decision */}
-          <Card className="lg:col-span-3 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-shadow">
-            <CardContent className="p-4 space-y-3">
-              <h2 className="text-lg font-semibold mb-4">Decisione</h2>
+          <Card className="lg:col-span-3 border-border hover:shadow-[var(--shadow-hover)] transition-shadow">
+            <CardContent className="p-5 space-y-4">
+              <h2 className="text-base font-semibold text-foreground mb-4">Decisione</h2>
               
               {showRejectionInput ? <div className="space-y-3">
-                  <label className="text-sm font-semibold">Motivo No Pass</label>
-                  <Textarea placeholder="Perché questo candidato non è adatto?" value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} className="min-h-[100px]" />
-                  <Button onClick={() => handleDecision("no_pass")} variant="destructive" className="w-full">
+                  <label className="text-sm font-medium text-foreground">Motivo No Pass</label>
+                  <Textarea placeholder="Perché questo candidato non è adatto?" value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} className="min-h-[100px] border-input bg-background" />
+                  <Button onClick={() => handleDecision("no_pass")} variant="destructive" className="w-full h-11 font-medium">
                     <XCircle className="w-4 h-4 mr-2" />
                     Conferma Rifiuto
                   </Button>
                   <Button onClick={() => {
                 setShowRejectionInput(false);
                 setRejectionReason("");
-              }} variant="outline" className="w-full">
+              }} variant="outline" className="w-full h-11 text-muted-foreground border-input hover:bg-muted">
                     Annulla
                   </Button>
-                </div> : <div className="space-y-3">
-                  <Button onClick={() => handleDecision("no_pass")} variant="destructive" className="w-full h-12">
-                    <XCircle className="w-5 h-5 mr-2" />
-                    No Pass
-                  </Button>
-                  <Button onClick={() => handleDecision("pass")} className="w-full h-12 bg-gradient-primary hover:opacity-90 text-slate-50 bg-[#18e818] font-semibold">
-                    <CheckCircle className="w-5 h-5 mr-2" />
+                </div> : <div className="space-y-2">
+                  <Button onClick={() => handleDecision("pass")} className="w-full h-11 bg-success hover:bg-success/90 text-white font-medium">
+                    <CheckCircle className="w-4 h-4 mr-2" />
                     Pass
+                  </Button>
+                  <Button onClick={() => handleDecision("no_pass")} variant="destructive" className="w-full h-11 font-medium">
+                    <XCircle className="w-4 h-4 mr-2" />
+                    No Pass
                   </Button>
                 </div>}
             </CardContent>
@@ -490,48 +497,44 @@ const Recruiting = () => {
 
       {/* Feedback Issue Dialog */}
       <Dialog open={showFeedbackEdit} onOpenChange={setShowFeedbackEdit}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl border-border">
           <DialogHeader>
-            <DialogTitle>Segnala Errore nel Feedback AI</DialogTitle>
-            <DialogDescription>
-              Modifica il feedback e descrivi l'errore trovato. La segnalazione verrà salvata per migliorare il sistema.
+            <DialogTitle className="text-foreground text-xl">Segnala Errore nel Feedback AI</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Modifica il feedback e descrivi l'errore trovato. Entrambi i campi sono obbligatori.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
+          <div className="space-y-4">
             <div>
-              <label className="text-sm font-semibold mb-2 block">Feedback Corretto</label>
+              <label className="text-sm font-medium mb-2 block text-foreground">Feedback Corretto</label>
               <Textarea
                 value={editedFeedback}
                 onChange={(e) => setEditedFeedback(e.target.value)}
-                className="min-h-[200px] font-mono text-sm"
+                className="min-h-[150px] resize-none border-input bg-background"
                 placeholder="Modifica il feedback AI..."
               />
             </div>
 
             <div>
-              <label className="text-sm font-semibold mb-2 block text-destructive">
-                Descrizione Errore * (obbligatorio)
+              <label className="text-sm font-medium mb-2 block text-destructive">
+                Descrizione Errore *
               </label>
               <Textarea
                 value={feedbackIssue}
                 onChange={(e) => setFeedbackIssue(e.target.value)}
-                className="min-h-[100px]"
-                placeholder="Descrivi quale errore hai trovato nel feedback AI originale..."
+                className="min-h-[100px] resize-none border-destructive/50 bg-background"
+                placeholder="Descrivi quale errore hai trovato nel feedback..."
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Es: "Il feedback indica esperienza come badante ma non è presente nel CV", "L'età riportata è errata", ecc.
-              </p>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowFeedbackEdit(false)}>
+            <Button variant="outline" onClick={() => setShowFeedbackEdit(false)} className="border-input text-muted-foreground hover:bg-muted">
               Annulla
             </Button>
-            <Button onClick={handleSaveFeedbackIssue} className="gap-2">
-              <AlertCircle className="w-4 h-4" />
-              Salva Segnalazione
+            <Button onClick={handleSaveFeedbackIssue} disabled={!feedbackIssue.trim()} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              Salva Issue
             </Button>
           </DialogFooter>
         </DialogContent>

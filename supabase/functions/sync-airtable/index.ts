@@ -20,6 +20,7 @@ interface Lavoratore {
   annuncio_orario_di_lavoro?: string
   annuncio_nucleo_famigliare?: string
   mansioni_richieste_transformed_ai?: string
+  mansioni_richieste?: string
   job_id?: string
   status: string
   airtable_id: string
@@ -116,6 +117,7 @@ Deno.serve(async (req) => {
           annuncio_orario_di_lavoro: Array.isArray(fields.annuncio_orario_di_lavoro) ? fields.annuncio_orario_di_lavoro[0] : fields.annuncio_orario_di_lavoro,
           annuncio_nucleo_famigliare: Array.isArray(fields.annuncio_nucleo_famigliare) ? fields.annuncio_nucleo_famigliare[0] : fields.annuncio_nucleo_famigliare,
           mansioni_richieste_transformed_ai: fields.mansioni_richieste_transformed_ai,
+          mansioni_richieste: Array.isArray(fields['mansioni_richieste (from processo_res)']) ? fields['mansioni_richieste (from processo_res)'][0] : fields['mansioni_richieste (from processo_res)'],
           job_id: defaultJobId,
           status: 'pending',
           airtable_id: airtableId,

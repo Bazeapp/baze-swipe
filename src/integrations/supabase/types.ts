@@ -165,6 +165,7 @@ export type Database = {
           foto_url: string | null
           id: string
           job_id: string | null
+          mansioni_richieste: string | null
           mansioni_richieste_transformed_ai: string | null
           nome: string
           processo_res: string | null
@@ -189,6 +190,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           job_id?: string | null
+          mansioni_richieste?: string | null
           mansioni_richieste_transformed_ai?: string | null
           nome: string
           processo_res?: string | null
@@ -213,6 +215,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           job_id?: string | null
+          mansioni_richieste?: string | null
           mansioni_richieste_transformed_ai?: string | null
           nome?: string
           processo_res?: string | null

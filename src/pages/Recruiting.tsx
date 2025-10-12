@@ -107,30 +107,19 @@ const Recruiting = () => {
       if (parsed.state === "empty" || !parsed.value || parsed.value === null) {
         return "";
       }
-      if (parsed.state === "generated" && parsed.value) {
-        text = parsed.value;
+      if (parsed.value) {
+        return parsed.value;
       }
     } catch (e) {
-      // Not JSON, continue with text cleaning
+      // Not JSON, try regex match as fallback
+      const jsonMatch = text.match(/\{"state":"generated","value":"(.+?)","isStale":(true|false)\}/s);
+      if (jsonMatch) {
+        return jsonMatch[1].replace(/\\n/g, "\n");
+      }
     }
     
-    let cleaned = text;
-    
-    // Remove array brackets at start and end
-    cleaned = cleaned.replace(/^\[|\]$/g, "");
-    
-    // Remove quotes around items
-    cleaned = cleaned.replace(/^["']|["']$/g, "");
-    cleaned = cleaned.replace(/",\s*"/g, "\n");
-    cleaned = cleaned.replace(/'",\s*"/g, "\n");
-    
-    // Replace escaped newlines with actual newlines
-    cleaned = cleaned.replace(/\\n/g, "\n");
-    
-    // Remove any remaining escape characters
-    cleaned = cleaned.replace(/\\"/g, '"');
-    
-    return cleaned;
+    // If no JSON format, just return the text cleaned
+    return text;
   };
 
   useEffect(() => {
@@ -449,7 +438,7 @@ const Recruiting = () => {
                   </div>
                 )}
 
-                {currentLavoratore.mansioni_richieste_transformed_ai && (
+                {currentLavoratore.mansioni_richieste_transformed_ai && cleanMansioniText(currentLavoratore.mansioni_richieste_transformed_ai) && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">MANSIONI</label>
                     <p className="text-sm mt-1 whitespace-pre-line">{cleanMansioniText(currentLavoratore.mansioni_richieste_transformed_ai)}</p>

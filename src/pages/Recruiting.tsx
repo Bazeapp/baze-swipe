@@ -10,6 +10,7 @@ import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText, A
 import ReactMarkdown from "react-markdown";
 import { SourceDataDrawer } from "@/components/SourceDataDrawer";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import bazeLogo from "@/assets/baze-logo.svg";
 interface Lavoratore {
   id: string;
   nome: string;
@@ -312,16 +313,15 @@ const Recruiting = () => {
         </Card>
       </div>;
   }
-  return <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
+  return <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 p-4">
       <div className="max-w-7xl mx-auto py-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <Briefcase className="w-5 h-5 text-primary-foreground" />
-            </div>
+          <div className="flex items-center gap-4">
+            <img src={bazeLogo} alt="Baze" className="h-8" />
+            <div className="h-8 w-px bg-border" />
             <div>
-              <h1 className="text-2xl font-bold">Baze Tinder</h1>
+              <h1 className="text-2xl font-bold text-primary">Recruiting Dashboard</h1>
               <p className="text-sm text-muted-foreground">
                 Profilo {currentIndex + 1} di {lavoratori.length}
               </p>
@@ -342,7 +342,7 @@ const Recruiting = () => {
         {/* Main Layout - 3 columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Left: Job Info */}
-          <Card className="lg:col-span-3 shadow-hover">
+          <Card className="lg:col-span-3 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-shadow">
             <CardContent className="p-4 space-y-4">
               <h2 className="text-lg font-semibold mb-4">Ricerca attiva</h2>
               
@@ -390,7 +390,7 @@ const Recruiting = () => {
           </Card>
 
           {/* Center: Candidate Profile */}
-          <Card className="lg:col-span-6 shadow-hover">
+          <Card className="lg:col-span-6 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-shadow">
             <CardContent className="p-6 space-y-4">
               {/* Header with photo, name and status */}
               <div className="flex items-start justify-between gap-4">
@@ -449,7 +449,7 @@ const Recruiting = () => {
           </Card>
 
           {/* Right: Decision */}
-          <Card className="lg:col-span-3 shadow-hover">
+          <Card className="lg:col-span-3 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-shadow">
             <CardContent className="p-4 space-y-3">
               <h2 className="text-lg font-semibold mb-4">Decisione</h2>
               

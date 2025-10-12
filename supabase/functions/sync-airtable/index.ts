@@ -50,8 +50,8 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Fetch records from Airtable using the "[⚙️ Ops] AI AGENT PROFILER" view
-    const airtableUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/lavoratori_selezionati?view=${encodeURIComponent('[⚙️ Ops] AI AGENT PROFILER')}`
+    // Fetch records from Airtable using the "[🔒] Lovable Tinder Database" view
+    const airtableUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/lavoratori_selezionati?view=${encodeURIComponent('[🔒] Lovable Tinder Database')}`
     const airtableResponse = await fetch(airtableUrl, {
       headers: {
         'Authorization': `Bearer ${AIRTABLE_API_KEY}`,

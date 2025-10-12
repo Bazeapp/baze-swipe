@@ -63,6 +63,28 @@ const Recruiting = () => {
     return cleaned;
   };
 
+  const cleanExperienceText = (text: string) => {
+    if (!text) return "";
+    
+    let cleaned = text;
+    
+    // Remove array brackets at start and end
+    cleaned = cleaned.replace(/^\[|\]$/g, "");
+    
+    // Remove quotes around array elements
+    cleaned = cleaned.replace(/^["']|["']$/g, "");
+    cleaned = cleaned.replace(/",\s*"/g, "\n\n");
+    cleaned = cleaned.replace(/"$/g, "");
+    
+    // Replace escaped newlines with actual newlines
+    cleaned = cleaned.replace(/\\n/g, "\n");
+    
+    // Remove any remaining escape characters except newlines
+    cleaned = cleaned.replace(/\\"/g, '"');
+    
+    return cleaned;
+  };
+
   useEffect(() => {
     checkAuth();
     loadProcessiRes();
@@ -424,7 +446,7 @@ const Recruiting = () => {
               {currentLavoratore.riassunto_esperienze_completo && (
                 <div>
                   <h3 className="text-sm font-semibold text-muted-foreground mb-2">ESPERIENZA</h3>
-                  <p className="text-sm leading-relaxed whitespace-pre-line">{currentLavoratore.riassunto_esperienze_completo}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-line">{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</p>
                 </div>
               )}
 

@@ -6,9 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText } from "lucide-react";
+import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { SourceDataDrawer } from "@/components/SourceDataDrawer";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 interface Lavoratore {
   id: string;
   nome: string;
@@ -46,6 +47,9 @@ const Recruiting = () => {
   const [processiRes, setProcessiRes] = useState<string[]>([]);
   const [selectedProcesso, setSelectedProcesso] = useState<string>("all");
   const [showSourceData, setShowSourceData] = useState(false);
+  const [showFeedbackEdit, setShowFeedbackEdit] = useState(false);
+  const [editedFeedback, setEditedFeedback] = useState("");
+  const [feedbackIssue, setFeedbackIssue] = useState("");
   const navigate = useNavigate();
   const {
     toast
@@ -233,6 +237,47 @@ const Recruiting = () => {
     await supabase.auth.signOut();
     navigate("/auth");
   };
+
+  const handleReportFeedbackIssue = () => {
+    const currentLavoratore = lavoratori[currentIndex];
+    if (!currentLavoratore) return;
+    
+    setEditedFeedback(cleanFeedbackText(currentLavoratore.feedback_ai || ""));
+    setFeedbackIssue("");
+    setShowFeedbackEdit(true);
+  };
+
+  const handleSaveFeedbackIssue = async () => {
+    if (!feedbackIssue.trim()) {
+      toast({
+        title: "Descrizione errore richiesta",
+        description: "Devi specificare quale errore hai trovato nel feedback",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const currentLavoratore = lavoratori[currentIndex];
+    if (!currentLavoratore) return;
+
+    // PROTOTIPO: Simulazione del salvataggio
+    toast({
+      title: "Issue Segnalata",
+      description: `Errore nel feedback di ${currentLavoratore.nome} salvato (simulazione)`,
+    });
+
+    console.log("Issue Report (simulazione):", {
+      lavoratore_id: currentLavoratore.id,
+      original_feedback: currentLavoratore.feedback_ai,
+      corrected_feedback: editedFeedback,
+      issue_description: feedbackIssue,
+      reported_at: new Date().toISOString()
+    });
+
+    setShowFeedbackEdit(false);
+    setEditedFeedback("");
+    setFeedbackIssue("");
+  };
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
         <div className="text-center">
@@ -369,15 +414,26 @@ const Recruiting = () => {
               {currentLavoratore.feedback_ai && cleanFeedbackText(currentLavoratore.feedback_ai) && <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-muted-foreground">FEEDBACK AI</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowSourceData(true)}
-                      className="gap-2 h-7 text-xs"
-                    >
-                      <FileText className="w-3 h-3" />
-                      Fact-Check
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleReportFeedbackIssue}
+                        className="gap-2 h-7 text-xs"
+                      >
+                        <AlertCircle className="w-3 h-3" />
+                        Segnala Errore
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSourceData(true)}
+                        className="gap-2 h-7 text-xs"
+                      >
+                        <FileText className="w-3 h-3" />
+                        Fact-Check
+                      </Button>
+                    </div>
                   </div>
                   <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
                     <ReactMarkdown>{cleanFeedbackText(currentLavoratore.feedback_ai)}</ReactMarkdown>
@@ -431,6 +487,55 @@ const Recruiting = () => {
         onOpenChange={setShowSourceData}
         lavoratore={currentLavoratore}
       />
+
+      {/* Feedback Issue Dialog */}
+      <Dialog open={showFeedbackEdit} onOpenChange={setShowFeedbackEdit}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Segnala Errore nel Feedback AI</DialogTitle>
+            <DialogDescription>
+              Modifica il feedback e descrivi l'errore trovato. La segnalazione verrà salvata per migliorare il sistema.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-semibold mb-2 block">Feedback Corretto</label>
+              <Textarea
+                value={editedFeedback}
+                onChange={(e) => setEditedFeedback(e.target.value)}
+                className="min-h-[200px] font-mono text-sm"
+                placeholder="Modifica il feedback AI..."
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold mb-2 block text-destructive">
+                Descrizione Errore * (obbligatorio)
+              </label>
+              <Textarea
+                value={feedbackIssue}
+                onChange={(e) => setFeedbackIssue(e.target.value)}
+                className="min-h-[100px]"
+                placeholder="Descrivi quale errore hai trovato nel feedback AI originale..."
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Es: "Il feedback indica esperienza come badante ma non è presente nel CV", "L'età riportata è errata", ecc.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFeedbackEdit(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleSaveFeedbackIssue} className="gap-2">
+              <AlertCircle className="w-4 h-4" />
+              Salva Segnalazione
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>;
 };
 export default Recruiting;

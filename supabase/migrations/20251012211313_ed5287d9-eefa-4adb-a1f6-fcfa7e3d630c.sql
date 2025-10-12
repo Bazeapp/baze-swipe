@@ -1,0 +1,3 @@
+-- Rename column from riassunto_esperienza_referenze to riassunto_esperienze_completo
+ALTER TABLE lavoratori_selezionati 
+RENAME COLUMN riassunto_esperienza_referenze TO riassunto_esperienze_completo;

@@ -168,7 +168,7 @@ export type Database = {
           mansioni_richieste_transformed_ai: string | null
           nome: string
           processo_res: string | null
-          riassunto_esperienza_referenze: string | null
+          riassunto_esperienze_completo: string | null
           stato_processo_res: string | null
           stato_selezione: string | null
           status: string
@@ -192,7 +192,7 @@ export type Database = {
           mansioni_richieste_transformed_ai?: string | null
           nome: string
           processo_res?: string | null
-          riassunto_esperienza_referenze?: string | null
+          riassunto_esperienze_completo?: string | null
           stato_processo_res?: string | null
           stato_selezione?: string | null
           status?: string
@@ -216,7 +216,7 @@ export type Database = {
           mansioni_richieste_transformed_ai?: string | null
           nome?: string
           processo_res?: string | null
-          riassunto_esperienza_referenze?: string | null
+          riassunto_esperienze_completo?: string | null
           stato_processo_res?: string | null
           stato_selezione?: string | null
           status?: string

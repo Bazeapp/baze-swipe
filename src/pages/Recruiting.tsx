@@ -442,14 +442,6 @@ const Recruiting = () => {
                 )}
               </div>
 
-              {/* Esperienza */}
-              {currentLavoratore.riassunto_esperienze_completo && (
-                <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">ESPERIENZA</h3>
-                  <p className="text-sm leading-relaxed whitespace-pre-line">{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</p>
-                </div>
-              )}
-
               {/* Feedback AI */}
               {currentLavoratore.feedback_ai && (
                 <div className="bg-primary/5 rounded-lg p-4 border-l-4 border-primary">
@@ -457,6 +449,14 @@ const Recruiting = () => {
                   <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
                     <ReactMarkdown>{cleanFeedbackText(currentLavoratore.feedback_ai)}</ReactMarkdown>
                   </div>
+                </div>
+              )}
+
+              {/* Esperienza */}
+              {currentLavoratore.riassunto_esperienze_completo && (
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">ESPERIENZA</h3>
+                  <p className="text-sm leading-relaxed whitespace-pre-line">{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</p>
                 </div>
               )}
 

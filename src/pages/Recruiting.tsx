@@ -98,25 +98,15 @@ const Recruiting = () => {
     return cleaned;
   };
 
-  const cleanMansioniText = (text: string) => {
-    if (!text) return "";
+  const getMansioniFromProcesso = (processoRes: string | null) => {
+    if (!processoRes) return "";
     
-    // Try to parse as JSON first
     try {
-      const parsed = JSON.parse(text);
-      if (parsed.state === "empty" || !parsed.value || parsed.value === null) {
-        return "";
-      }
-      // Extract and clean the value from the JSON
-      if (parsed.value) {
-        return parsed.value.replace(/\\n/g, "\n");
-      }
+      const parsed = JSON.parse(processoRes);
+      return parsed.mansioni_richieste || "";
     } catch (e) {
-      // Not JSON, return the text as-is with newline replacement
-      return text.replace(/\\n/g, "\n");
+      return "";
     }
-    
-    return text;
   };
 
   useEffect(() => {
@@ -435,10 +425,10 @@ const Recruiting = () => {
                   </div>
                 )}
 
-                {currentLavoratore.mansioni_richieste_transformed_ai && cleanMansioniText(currentLavoratore.mansioni_richieste_transformed_ai) && (
+                {getMansioniFromProcesso(currentLavoratore.processo_res) && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">MANSIONI</label>
-                    <p className="text-sm mt-1 whitespace-pre-line">{cleanMansioniText(currentLavoratore.mansioni_richieste_transformed_ai)}</p>
+                    <p className="text-sm mt-1 whitespace-pre-line">{getMansioniFromProcesso(currentLavoratore.processo_res)}</p>
                   </div>
                 )}
               </div>

@@ -59,7 +59,10 @@ Deno.serve(async (req) => {
     })
 
     if (!airtableResponse.ok) {
-      throw new Error(`Airtable API error: ${airtableResponse.statusText}`)
+      const errorBody = await airtableResponse.text()
+      console.error('Airtable API error:', airtableResponse.status, airtableResponse.statusText)
+      console.error('Error response body:', errorBody)
+      throw new Error(`Airtable API error: ${airtableResponse.statusText} - ${errorBody}`)
     }
 
     const airtableData = await airtableResponse.json()
@@ -122,10 +125,10 @@ Deno.serve(async (req) => {
           annuncio_nucleo_famigliare: Array.isArray(fields.annuncio_nucleo_famigliare) ? fields.annuncio_nucleo_famigliare[0] : fields.annuncio_nucleo_famigliare,
           mansioni_richieste_transformed_ai: fields.mansioni_richieste_transformed_ai,
           mansioni_richieste: Array.isArray(fields['mansioni_richieste (from processo_res)']) ? fields['mansioni_richieste (from processo_res)'][0] : fields['mansioni_richieste (from processo_res)'],
-          chi_sono: Array.isArray(fields['chi_sono (from lavoratore)']) ? fields['chi_sono (from lavoratore)'][0] : fields['chi_sono (from lavoratore)'],
-          riassunto_profilo_breve: fields.riassunto_profilo_breve,
-          intervista_llm_transcript_history: fields.intervista_llm_transcript_history,
-          descrizione_ricerca_famiglia: Array.isArray(fields['descrizione_ricerca_famiglia (from processo_res)']) ? fields['descrizione_ricerca_famiglia (from processo_res)'][0] : fields['descrizione_ricerca_famiglia (from processo_res)'],
+          chi_sono: fields['chi_sono (from lavoratore)'] ? (Array.isArray(fields['chi_sono (from lavoratore)']) ? fields['chi_sono (from lavoratore)'][0] : fields['chi_sono (from lavoratore)']) : null,
+          riassunto_profilo_breve: fields.riassunto_profilo_breve || null,
+          intervista_llm_transcript_history: fields.intervista_llm_transcript_history || null,
+          descrizione_ricerca_famiglia: fields['descrizione_ricerca_famiglia (from processo_res)'] ? (Array.isArray(fields['descrizione_ricerca_famiglia (from processo_res)']) ? fields['descrizione_ricerca_famiglia (from processo_res)'][0] : fields['descrizione_ricerca_famiglia (from processo_res)']) : null,
           job_id: defaultJobId,
           status: 'pending',
           airtable_id: airtableId,

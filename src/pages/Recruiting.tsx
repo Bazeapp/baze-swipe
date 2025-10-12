@@ -25,6 +25,7 @@ interface Lavoratore {
   annuncio_orario_di_lavoro: string | null;
   annuncio_nucleo_famigliare: string | null;
   mansioni_richieste_transformed_ai: string | null;
+  mansioni_richieste: string | null;
   job_id: string | null;
   status: string;
   stato_selezione: string | null;
@@ -98,16 +99,6 @@ const Recruiting = () => {
     return cleaned;
   };
 
-  const getMansioniFromProcesso = (processoRes: string | null) => {
-    if (!processoRes) return "";
-    
-    try {
-      const parsed = JSON.parse(processoRes);
-      return parsed.mansioni_richieste || "";
-    } catch (e) {
-      return "";
-    }
-  };
 
   useEffect(() => {
     checkAuth();
@@ -425,10 +416,10 @@ const Recruiting = () => {
                   </div>
                 )}
 
-                {getMansioniFromProcesso(currentLavoratore.processo_res) && (
+                {currentLavoratore.mansioni_richieste && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">MANSIONI</label>
-                    <p className="text-sm mt-1 whitespace-pre-line">{getMansioniFromProcesso(currentLavoratore.processo_res)}</p>
+                    <p className="text-sm mt-1 whitespace-pre-line">{currentLavoratore.mansioni_richieste}</p>
                   </div>
                 )}
               </div>

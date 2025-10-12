@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 interface Lavoratore {
   id: string;
@@ -212,20 +212,6 @@ const Recruiting = () => {
       });
     }
   };
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-      setShowRejectionInput(false);
-      setRejectionReason("");
-    }
-  };
-  const handleNext = () => {
-    if (currentIndex < lavoratori.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-      setShowRejectionInput(false);
-      setRejectionReason("");
-    }
-  };
   const handleSyncToAirtable = async () => {
     setIsSyncing(true);
     try {
@@ -407,18 +393,6 @@ const Recruiting = () => {
                   <h3 className="text-sm font-semibold mb-2 text-[#0047a9]">ESPERIENZA</h3>
                   <p className="leading-relaxed whitespace-pre-line text-xs">{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</p>
                 </div>}
-
-              {/* Navigation buttons */}
-              <div className="flex gap-2 pt-4 border-t">
-                <Button onClick={handlePrevious} variant="outline" size="sm" disabled={currentIndex === 0} className="flex-1">
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Precedente
-                </Button>
-                <Button onClick={handleNext} variant="outline" size="sm" disabled={currentIndex === lavoratori.length - 1} className="flex-1">
-                  Successivo
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
             </CardContent>
           </Card>
 

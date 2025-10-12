@@ -88,18 +88,6 @@ export function DecisionDialog({ open, onOpenChange, lavoratore, decisionType, o
       category: "Esperienza"
     },
     {
-      id: "mansioni",
-      title: "Mansioni Richieste",
-      content: cleanText(lavoratore.mansioni_richieste),
-      category: "Annuncio"
-    },
-    {
-      id: "ricerca_famiglia",
-      title: "Descrizione Ricerca Famiglia",
-      content: cleanText(lavoratore.descrizione_ricerca_famiglia),
-      category: "Annuncio"
-    },
-    {
       id: "intervista",
       title: "Transcript Intervista",
       content: cleanText(lavoratore.intervista_llm_transcript_history),

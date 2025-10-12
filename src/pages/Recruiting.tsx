@@ -25,7 +25,6 @@ interface Lavoratore {
   annuncio_orario_di_lavoro: string | null;
   annuncio_nucleo_famigliare: string | null;
   mansioni_richieste_transformed_ai: string | null;
-  mansioni_richieste: string | null;
   job_id: string | null;
   status: string;
   stato_selezione: string | null;
@@ -416,10 +415,10 @@ const Recruiting = () => {
                   </div>
                 )}
 
-                {currentLavoratore.mansioni_richieste && (
+                {currentLavoratore.mansioni_richieste_transformed_ai && (
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground">MANSIONI</label>
-                    <p className="text-sm mt-1 whitespace-pre-line">{currentLavoratore.mansioni_richieste}</p>
+                    <p className="text-sm mt-1 whitespace-pre-line">{currentLavoratore.mansioni_richieste_transformed_ai}</p>
                   </div>
                 )}
               </div>

@@ -447,7 +447,7 @@ const Recruiting = () => {
                         className="gap-1.5 h-7 text-xs text-muted-foreground border-input hover:bg-muted"
                       >
                         <AlertCircle className="w-3 h-3" />
-                        Segnala
+                        Segnala problemi feedback AI
                       </Button>
                       <Button
                         variant="outline"

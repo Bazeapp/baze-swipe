@@ -387,7 +387,7 @@ const Recruiting = () => {
               {/* Esperienza */}
               {currentLavoratore.riassunto_esperienze_completo && <div>
                   <h3 className="text-sm font-semibold mb-2 text-[#0047a9]">ESPERIENZA</h3>
-                  <p className="leading-relaxed whitespace-pre-line text-[1.125rem] font-medium">{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</p>
+                  <p className="leading-relaxed whitespace-pre-line text-[1rem] font-medium">{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</p>
                 </div>}
             </CardContent>
           </Card>

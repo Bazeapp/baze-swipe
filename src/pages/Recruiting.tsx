@@ -54,10 +54,56 @@ const Recruiting = () => {
   const [feedbackIssue, setFeedbackIssue] = useState("");
   const [decisionDialogOpen, setDecisionDialogOpen] = useState(false);
   const [pendingDecision, setPendingDecision] = useState<"pass" | "no_pass" | null>(null);
+  const [photoSignedUrls, setPhotoSignedUrls] = useState<Record<string, string>>({});
+  const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const {
     toast
   } = useToast();
+
+  // Helper function to get signed URLs for photos
+  const getSignedPhotoUrl = async (photoPath: string | null): Promise<string | null> => {
+    if (!photoPath) return null;
+    
+    // If already a full URL, return as-is (for Airtable URLs)
+    if (photoPath.startsWith('http')) return photoPath;
+
+    // Check if we already have a signed URL cached
+    if (photoSignedUrls[photoPath]) {
+      return photoSignedUrls[photoPath];
+    }
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('candidate-photos')
+        .createSignedUrl(photoPath, 3600); // 1 hour expiry
+
+      if (error) {
+        console.error('Error creating signed URL:', error);
+        return null;
+      }
+
+      // Cache the signed URL
+      setPhotoSignedUrls(prev => ({ ...prev, [photoPath]: data.signedUrl }));
+      return data.signedUrl;
+    } catch (error) {
+      console.error('Error getting signed URL:', error);
+      return null;
+    }
+  };
+
+  // Load signed URL for current photo
+  useEffect(() => {
+    const loadCurrentPhoto = async () => {
+      if (lavoratori[currentIndex]?.foto_url) {
+        const signedUrl = await getSignedPhotoUrl(lavoratori[currentIndex].foto_url);
+        setCurrentPhotoUrl(signedUrl);
+      } else {
+        setCurrentPhotoUrl(null);
+      }
+    };
+    loadCurrentPhoto();
+  }, [currentIndex, lavoratori]);
   const cleanFeedbackText = (text: string) => {
     if (!text) return "";
 
@@ -420,7 +466,7 @@ const Recruiting = () => {
               {/* Header with photo, name and status */}
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4 flex-1">
-                  {currentLavoratore.foto_url && <img src={currentLavoratore.foto_url} alt={currentLavoratore.nome} className="w-20 h-20 rounded-full object-cover border-2 border-border" />}
+                  {currentPhotoUrl && <img src={currentPhotoUrl} alt={currentLavoratore.nome} className="w-20 h-20 rounded-full object-cover border-2 border-border" />}
                   <div className="flex-1">
                     <h2 className="text-2xl font-semibold text-foreground">{currentLavoratore.nome}</h2>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">

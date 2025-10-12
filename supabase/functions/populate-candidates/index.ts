@@ -149,11 +149,8 @@ async function uploadToStorage(
       return null
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('candidate-photos')
-      .getPublicUrl(fileName)
-
-    return publicUrl
+    // Return file path instead of public URL (bucket is now private)
+    return fileName
   } catch (error) {
     console.error('Error uploading to storage:', error)
     return null
@@ -166,12 +163,52 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { batchSize = 10 } = await req.json().catch(() => ({ batchSize: 10 }))
-    
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      console.error('[SECURITY] Missing authorization header')
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
+
+    // Verify user token
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+
+    if (authError || !user) {
+      console.error('[SECURITY] Invalid or expired token:', authError?.message)
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check if user has admin role
+    const { data: roleData } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle()
+
+    if (!roleData) {
+      console.error(`[SECURITY] User ${user.id} attempted to populate candidates without admin privileges`)
+      return new Response(
+        JSON.stringify({ error: 'Insufficient permissions. Admin role required.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log(`[AUDIT] Populate candidates initiated by admin user ${user.id} at ${new Date().toISOString()}`)
+
+    const { batchSize = 10 } = await req.json().catch(() => ({ batchSize: 10 }))
 
     // Get available jobs
     const { data: jobs, error: jobsError } = await supabaseClient
@@ -219,12 +256,13 @@ Deno.serve(async (req) => {
         await new Promise(resolve => setTimeout(resolve, 500))
       }
 
-      // Insert candidate
+      // Insert candidate with assigned recruiter
       const { data: candidate, error: insertError } = await supabaseClient
         .from('candidates')
         .insert({
           ...candidateData,
-          photo_url: photoUrl
+          photo_url: photoUrl,
+          assigned_recruiter_id: user.id
         })
         .select()
         .single()

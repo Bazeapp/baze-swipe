@@ -66,23 +66,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Check if user has admin role
-    const { data: roleData } = await supabaseClient
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle()
-
-    if (!roleData) {
-      console.error(`[SECURITY] User ${user.id} attempted to sync without admin privileges`)
-      return new Response(
-        JSON.stringify({ error: 'Insufficient permissions. Admin role required.' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log(`[AUDIT] Airtable sync initiated by admin user ${user.id} at ${new Date().toISOString()}`)
+    console.log(`[AUDIT] Airtable sync initiated by user ${user.id} at ${new Date().toISOString()}`)
 
     const AIRTABLE_API_KEY = Deno.env.get('AIRTABLE_API_KEY')
     const AIRTABLE_BASE_ID = Deno.env.get('AIRTABLE_BASE_ID')

@@ -70,8 +70,22 @@ const Recruiting = () => {
       setCurrentPhotoUrl(null);
     }
   }, [currentIndex, lavoratori]);
-  const cleanFeedbackText = (text: string) => {
+  const cleanFeedbackText = (text: any) => {
+    // Handle non-string values
     if (!text) return "";
+    if (typeof text !== "string") {
+      // If it's an object, try to stringify it
+      if (typeof text === "object") {
+        try {
+          text = JSON.stringify(text);
+        } catch {
+          return "";
+        }
+      } else {
+        // Convert to string
+        text = String(text);
+      }
+    }
 
     // Try to parse as JSON first
     try {
@@ -100,8 +114,21 @@ const Recruiting = () => {
     cleaned = cleaned.replace(/\\/g, "");
     return cleaned;
   };
-  const cleanExperienceText = (text: string) => {
+  const cleanExperienceText = (text: any) => {
+    // Handle non-string values
     if (!text) return "";
+    if (typeof text !== "string") {
+      if (typeof text === "object") {
+        try {
+          text = JSON.stringify(text);
+        } catch {
+          return "";
+        }
+      } else {
+        text = String(text);
+      }
+    }
+
     let cleaned = text;
 
     // Remove array brackets at start and end

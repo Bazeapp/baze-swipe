@@ -136,6 +136,7 @@ Deno.serve(async (req) => {
         descrizione_personale: fields.chi_sono || null,
         riassunto_esperienze_completo: fields.riassunto_esperienze_completo || null,
         feedback_ai: fields.ai_agent_profiler || null,
+        processo: Array.isArray(fields.processo) ? fields.processo[0] : fields.processo,
         processo_res: processo,
         email_processo_res_famiglia: Array.isArray(fields.email_processo_res_famiglia) ? fields.email_processo_res_famiglia[0] : fields.email_processo_res_famiglia,
         annuncio_luogo_riferimento_pubblico: Array.isArray(fields.annuncio_luogo_riferimento_pubblico) ? fields.annuncio_luogo_riferimento_pubblico[0] : fields.annuncio_luogo_riferimento_pubblico,

@@ -25,6 +25,7 @@ interface Lavoratore {
   descrizione_personale: string | null;
   riassunto_esperienze_completo: string | null;
   feedback_ai: string | null;
+  processo: string | null;
   processo_res: string | null;
   email_processo_res_famiglia: string | null;
   annuncio_luogo_riferimento_pubblico: string | null;
@@ -369,7 +370,7 @@ const Recruiting = () => {
               <img src={bazeLogo} alt="Baze" className="h-8" />
               <div className="h-6 w-px bg-border" />
               <div>
-                <h1 className="text-xl font-semibold text-foreground">Processo</h1>
+                <h1 className="text-xl font-semibold text-foreground">{currentLavoratore.processo || 'Processo'}</h1>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Profilo {currentIndex + 1} di {lavoratori.length}
                 </p>
@@ -406,7 +407,6 @@ const Recruiting = () => {
                       <SelectValue placeholder="Seleziona processo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tutti i processi</SelectItem>
                       {processiRes.map(processo => {
                       const lavoratore = lavoratori.find(l => l.processo_res === processo);
                       const label = lavoratore?.processo_res || processo;

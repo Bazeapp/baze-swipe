@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText, AlertCircle, Navigation, Clock } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { SourceDataDrawer } from "@/components/SourceDataDrawer";
 import { DecisionDialog } from "@/components/DecisionDialog";
@@ -19,6 +19,8 @@ interface Lavoratore {
   foto_url: string | null;
   travel_time: string | null;
   travel_time_tra_cap: string | null;
+  travel_time_flag: string | null;
+  anni_esperienza_colf: number | null;
   descrizione_personale: string | null;
   riassunto_esperienze_completo: string | null;
   feedback_ai: string | null;
@@ -506,6 +508,80 @@ const Recruiting = () => {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Info boxes */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    {/* Distanza */}
+                    {currentLavoratore.travel_time_tra_cap && (
+                      <div 
+                        className={`rounded-lg p-3 border ${
+                          currentLavoratore.travel_time_flag === 'green' 
+                            ? 'bg-green-50 border-green-200' 
+                            : currentLavoratore.travel_time_flag === 'yellow'
+                            ? 'bg-yellow-50 border-yellow-200'
+                            : 'bg-red-50 border-red-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Navigation 
+                            className={`w-4 h-4 ${
+                              currentLavoratore.travel_time_flag === 'green' 
+                                ? 'text-green-600' 
+                                : currentLavoratore.travel_time_flag === 'yellow'
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                            }`}
+                          />
+                          <span className="text-xs font-semibold text-muted-foreground uppercase">Distanza</span>
+                        </div>
+                        <p className={`text-sm font-medium ${
+                          currentLavoratore.travel_time_flag === 'green' 
+                            ? 'text-green-700' 
+                            : currentLavoratore.travel_time_flag === 'yellow'
+                            ? 'text-yellow-700'
+                            : 'text-red-700'
+                        }`}>
+                          {currentLavoratore.travel_time_tra_cap} minuti
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Anni di esperienza */}
+                    {currentLavoratore.anni_esperienza_colf !== null && (
+                      <div 
+                        className={`rounded-lg p-3 border ${
+                          currentLavoratore.anni_esperienza_colf > 8
+                            ? 'bg-green-50 border-green-200' 
+                            : currentLavoratore.anni_esperienza_colf >= 3
+                            ? 'bg-yellow-50 border-yellow-200'
+                            : 'bg-red-50 border-red-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Clock 
+                            className={`w-4 h-4 ${
+                              currentLavoratore.anni_esperienza_colf > 8
+                                ? 'text-green-600' 
+                                : currentLavoratore.anni_esperienza_colf >= 3
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                            }`}
+                          />
+                          <span className="text-xs font-semibold text-muted-foreground uppercase">Esperienza</span>
+                        </div>
+                        <p className={`text-sm font-medium ${
+                          currentLavoratore.anni_esperienza_colf > 8
+                            ? 'text-green-700' 
+                            : currentLavoratore.anni_esperienza_colf >= 3
+                            ? 'text-yellow-700'
+                            : 'text-red-700'
+                        }`}>
+                          {currentLavoratore.anni_esperienza_colf} {currentLavoratore.anni_esperienza_colf === 1 ? 'anno' : 'anni'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
                     <ReactMarkdown>{cleanFeedbackText(currentLavoratore.feedback_ai)}</ReactMarkdown>
                   </div>

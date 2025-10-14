@@ -157,6 +157,7 @@ export type Database = {
       lavoratori_selezionati: {
         Row: {
           airtable_id: string | null
+          anni_esperienza_colf: number | null
           annuncio_luogo_riferimento_pubblico: string | null
           annuncio_nucleo_famigliare: string | null
           annuncio_orario_di_lavoro: string | null
@@ -182,11 +183,13 @@ export type Database = {
           stato_selezione: string | null
           status: string
           travel_time: string | null
+          travel_time_flag: string | null
           travel_time_tra_cap: string | null
           updated_at: string
         }
         Insert: {
           airtable_id?: string | null
+          anni_esperienza_colf?: number | null
           annuncio_luogo_riferimento_pubblico?: string | null
           annuncio_nucleo_famigliare?: string | null
           annuncio_orario_di_lavoro?: string | null
@@ -212,11 +215,13 @@ export type Database = {
           stato_selezione?: string | null
           status?: string
           travel_time?: string | null
+          travel_time_flag?: string | null
           travel_time_tra_cap?: string | null
           updated_at?: string
         }
         Update: {
           airtable_id?: string | null
+          anni_esperienza_colf?: number | null
           annuncio_luogo_riferimento_pubblico?: string | null
           annuncio_nucleo_famigliare?: string | null
           annuncio_orario_di_lavoro?: string | null
@@ -242,6 +247,7 @@ export type Database = {
           stato_selezione?: string | null
           status?: string
           travel_time?: string | null
+          travel_time_flag?: string | null
           travel_time_tra_cap?: string | null
           updated_at?: string
         }

@@ -369,7 +369,7 @@ const Recruiting = () => {
               <img src={bazeLogo} alt="Baze" className="h-8" />
               <div className="h-6 w-px bg-border" />
               <div>
-                <h1 className="text-xl font-semibold text-foreground">{currentLavoratore.processo_res || 'Recruiting Dashboard'}</h1>
+                <h1 className="text-xl font-semibold text-foreground">Processo</h1>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Profilo {currentIndex + 1} di {lavoratori.length}
                 </p>

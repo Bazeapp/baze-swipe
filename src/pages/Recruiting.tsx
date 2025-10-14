@@ -716,15 +716,16 @@ const Recruiting = () => {
             <div className="flex gap-3 justify-center">
               <Button 
                 onClick={() => handleDecisionClick("pass")} 
-                className="w-48 h-12 bg-success hover:bg-success/90 text-white font-medium"
+                variant="outline"
+                className="w-48 h-12 font-medium border-input hover:bg-muted"
               >
                 <CheckCircle className="w-5 h-5 mr-2" />
                 Pass
               </Button>
               <Button 
                 onClick={() => handleDecisionClick("no_pass")} 
-                variant="destructive" 
-                className="w-48 h-12 font-medium"
+                variant="outline"
+                className="w-48 h-12 font-medium border-input hover:bg-muted"
               >
                 <XCircle className="w-5 h-5 mr-2" />
                 No Pass

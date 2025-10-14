@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText, AlertCircle, Navigation, Clock } from "lucide-react";
+import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText, AlertCircle, Navigation, Clock, Calendar } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import ReactMarkdown from "react-markdown";
 import { SourceDataDrawer } from "@/components/SourceDataDrawer";
 import { DecisionDialog } from "@/components/DecisionDialog";
@@ -40,6 +41,7 @@ interface Lavoratore {
   stato_selezione: string | null;
   stato_processo_res: string | null;
   match_disponibilità_famiglia_lavoratore: string | null;
+  disponibilità_settimanale_recap: string | null;
 }
 const Recruiting = () => {
   const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);
@@ -578,6 +580,27 @@ const Recruiting = () => {
                       <p className={`text-sm font-medium ${textColorClass}`}>
                         {matchText}
                       </p>
+                      
+                      {/* Accordion for weekly availability */}
+                      {currentLavoratore.disponibilità_settimanale_recap && (
+                        <Accordion type="single" collapsible className="mt-3">
+                          <AccordionItem value="calendar" className="border-0">
+                            <AccordionTrigger className="py-2 hover:no-underline">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4" />
+                                <span className="text-xs font-medium">Vedi calendario disponibilità</span>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="mt-2 p-3 bg-background/50 rounded border text-xs">
+                                <pre className="whitespace-pre-wrap font-mono">
+                                  {currentLavoratore.disponibilità_settimanale_recap}
+                                </pre>
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      )}
                     </div>
                   );
                 })()}

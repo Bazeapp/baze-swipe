@@ -20,8 +20,21 @@ interface SourceDataDrawerProps {
   lavoratore: Lavoratore | null;
 }
 
-const cleanText = (text: string | null) => {
+const cleanText = (text: any) => {
   if (!text) return "Non disponibile";
+  
+  // Handle non-string values
+  if (typeof text !== "string") {
+    if (typeof text === "object") {
+      try {
+        text = JSON.stringify(text);
+      } catch {
+        return "Non disponibile";
+      }
+    } else {
+      text = String(text);
+    }
+  }
   
   let cleaned = text;
 

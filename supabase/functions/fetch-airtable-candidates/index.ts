@@ -98,6 +98,11 @@ Deno.serve(async (req) => {
         continue
       }
 
+      // Limit to 5 results
+      if (lavoratori.length >= 5) {
+        break
+      }
+
       const fields = record.fields
 
       // Get nome from reference field
@@ -106,6 +111,17 @@ Deno.serve(async (req) => {
         nome = Array.isArray(fields.nome_lavoratore) ? fields.nome_lavoratore[0] : fields.nome_lavoratore
       } else if (fields.lavoratore) {
         nome = Array.isArray(fields.lavoratore) ? fields.lavoratore[0] : fields.lavoratore
+      }
+
+      // Extract value from match_disponibilità_famiglia_lavoratore if it's an object
+      let matchDisponibilita = null
+      if (fields.match_disponibilità_famiglia_lavoratore) {
+        const matchField = fields.match_disponibilità_famiglia_lavoratore
+        if (typeof matchField === 'object' && matchField.value) {
+          matchDisponibilita = matchField.value
+        } else {
+          matchDisponibilita = matchField
+        }
       }
 
       const lavoratore = {
@@ -131,7 +147,7 @@ Deno.serve(async (req) => {
         riassunto_profilo_breve: fields.riassunto_profilo_breve || null,
         intervista_llm_transcript_history: fields.intervista_llm_transcript_history || null,
         descrizione_ricerca_famiglia: fields['descrizione_ricerca_famiglia (from processo_res)'] ? (Array.isArray(fields['descrizione_ricerca_famiglia (from processo_res)']) ? fields['descrizione_ricerca_famiglia (from processo_res)'][0] : fields['descrizione_ricerca_famiglia (from processo_res)']) : null,
-        match_disponibilità_famiglia_lavoratore: fields.match_disponibilità_famiglia_lavoratore || null,
+        match_disponibilità_famiglia_lavoratore: matchDisponibilita,
         status: 'pending',
         airtable_id: record.id,
         stato_selezione: Array.isArray(fields.stato_selezione) ? fields.stato_selezione[0] : fields.stato_selezione,

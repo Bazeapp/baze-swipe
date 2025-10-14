@@ -389,7 +389,7 @@ const Recruiting = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-6 py-6 pb-32">
 
         {/* Main Layout - 3 columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -650,16 +650,6 @@ const Recruiting = () => {
                   </div>
                 </div>}
 
-              {/* Feedback Recruiter */}
-              {currentLavoratore.feedback_recruiter && (
-                <div className="bg-accent/50 rounded-lg p-4 border border-border">
-                  <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Feedback Recruiter</h3>
-                  <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-                    {currentLavoratore.feedback_recruiter}
-                  </div>
-                </div>
-              )}
-
               {/* Esperienza */}
               {currentLavoratore.riassunto_esperienze_completo && <div>
                   <h3 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Esperienza</h3>
@@ -670,36 +660,77 @@ const Recruiting = () => {
             </CardContent>
           </Card>
 
-          {/* Right: Decision */}
+          {/* Right: Feedback Recruiter */}
           <Card className="lg:col-span-3 border-border hover:shadow-[var(--shadow-hover)] transition-shadow">
             <CardContent className="p-5 space-y-4">
-              <h2 className="text-base font-semibold text-foreground mb-4">Decisione</h2>
+              <h2 className="text-base font-semibold text-foreground mb-4">Feedback Recruiter</h2>
               
-              {showRejectionInput ? <div className="space-y-3">
-                  <label className="text-sm font-medium text-foreground">Motivo No Pass</label>
-                  <Textarea placeholder="Perché questo candidato non è adatto?" value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} className="min-h-[100px] border-input bg-background" />
-                  <Button onClick={() => handleDecisionClick("no_pass")} variant="destructive" className="w-full h-11 font-medium">
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Conferma Rifiuto
-                  </Button>
-                  <Button onClick={() => {
-                setShowRejectionInput(false);
-                setRejectionReason("");
-              }} variant="outline" className="w-full h-11 text-muted-foreground border-input hover:bg-muted">
-                    Annulla
-                  </Button>
-                </div> : <div className="space-y-2">
-                  <Button onClick={() => handleDecisionClick("pass")} className="w-full h-11 bg-success hover:bg-success/90 text-white font-medium">
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Pass
-                  </Button>
-                  <Button onClick={() => handleDecisionClick("no_pass")} variant="destructive" className="w-full h-11 font-medium">
-                    <XCircle className="w-4 h-4 mr-2" />
-                    No Pass
-                  </Button>
-                </div>}
+              {currentLavoratore.feedback_recruiter ? (
+                <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                  {currentLavoratore.feedback_recruiter}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Nessun feedback inserito</p>
+              )}
             </CardContent>
           </Card>
+        </div>
+      </div>
+
+      {/* Fixed Bottom Bar for Pass/No Pass */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-lg z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          {showRejectionInput ? (
+            <div className="flex gap-3 items-end max-w-2xl mx-auto">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-foreground mb-2 block">Motivo No Pass</label>
+                <Textarea 
+                  placeholder="Perché questo candidato non è adatto?" 
+                  value={rejectionReason} 
+                  onChange={e => setRejectionReason(e.target.value)} 
+                  className="min-h-[80px] border-input bg-background resize-none" 
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => handleDecisionClick("no_pass")} 
+                  variant="destructive" 
+                  className="h-11 font-medium"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Conferma Rifiuto
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowRejectionInput(false);
+                    setRejectionReason("");
+                  }} 
+                  variant="outline" 
+                  className="h-11 text-muted-foreground border-input hover:bg-muted"
+                >
+                  Annulla
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3 justify-center">
+              <Button 
+                onClick={() => handleDecisionClick("pass")} 
+                className="w-48 h-12 bg-success hover:bg-success/90 text-white font-medium"
+              >
+                <CheckCircle className="w-5 h-5 mr-2" />
+                Pass
+              </Button>
+              <Button 
+                onClick={() => handleDecisionClick("no_pass")} 
+                variant="destructive" 
+                className="w-48 h-12 font-medium"
+              >
+                <XCircle className="w-5 h-5 mr-2" />
+                No Pass
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

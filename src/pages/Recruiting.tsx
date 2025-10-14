@@ -488,16 +488,14 @@ const Recruiting = () => {
                         />
                         <span className="text-xs font-semibold text-muted-foreground uppercase">Distanza</span>
                       </div>
-                      {currentLavoratore.indirizzo_lavoratore && currentLavoratore.indirizzo_famiglia && (
-                        <a
-                          href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(currentLavoratore.indirizzo_lavoratore)}&destination=${encodeURIComponent(currentLavoratore.indirizzo_famiglia)}&travelmode=transit`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:opacity-70 transition-opacity"
-                        >
-                          <MapPin className="w-4 h-4 text-muted-foreground" />
-                        </a>
-                      )}
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(currentLavoratore.indirizzo_lavoratore || '')}&destination=${encodeURIComponent(currentLavoratore.indirizzo_famiglia || '')}&travelmode=transit`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:opacity-70 transition-opacity"
+                      >
+                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                      </a>
                     </div>
                     <p className={`text-sm font-medium ${
                       currentLavoratore.travel_time_flag === 'green' 

@@ -11,6 +11,8 @@ interface Lavoratore {
   foto_url?: string
   travel_time?: string
   travel_time_tra_cap?: string
+  travel_time_flag?: string
+  anni_esperienza_colf?: number
   assigned_recruiter_id?: string
   descrizione_personale?: string
   riassunto_esperienze_completo?: string
@@ -140,6 +142,8 @@ Deno.serve(async (req) => {
           foto_url: fields.foto_lavoratore?.[0]?.url,
           travel_time: fields.travel_time_tra_cap,
           travel_time_tra_cap: fields.travel_time_tra_cap,
+          travel_time_flag: Array.isArray(fields.travel_time_flag) ? fields.travel_time_flag[0] : fields.travel_time_flag,
+          anni_esperienza_colf: Array.isArray(fields.anni_esperienza_colf) ? fields.anni_esperienza_colf[0] : fields.anni_esperienza_colf,
           assigned_recruiter_id: user.id,
           descrizione_personale: fields.chi_sono,
           riassunto_esperienze_completo: fields.riassunto_esperienze_completo,

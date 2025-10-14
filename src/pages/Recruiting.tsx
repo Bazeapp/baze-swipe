@@ -531,7 +531,15 @@ const Recruiting = () => {
 
                 {/* Match Disponibilità */}
                 {currentLavoratore.match_disponibilità_famiglia_lavoratore && (() => {
-                  const matchText = String(currentLavoratore.match_disponibilità_famiglia_lavoratore);
+                  // Extract value if it's an object with value property
+                  let matchValue: any = currentLavoratore.match_disponibilità_famiglia_lavoratore;
+                  if (matchValue && typeof matchValue === 'object' && 'value' in matchValue && matchValue.value) {
+                    matchValue = matchValue.value;
+                  }
+                  
+                  if (!matchValue) return null;
+                  
+                  const matchText = String(matchValue);
                   const lowerText = matchText.toLowerCase();
                   const isComplete = lowerText.includes("corrisponde completamente");
                   const isPartial = lowerText.includes("corrisponde parzialmente");

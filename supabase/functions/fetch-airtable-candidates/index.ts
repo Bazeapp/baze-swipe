@@ -131,6 +131,7 @@ Deno.serve(async (req) => {
         riassunto_profilo_breve: fields.riassunto_profilo_breve || null,
         intervista_llm_transcript_history: fields.intervista_llm_transcript_history || null,
         descrizione_ricerca_famiglia: fields['descrizione_ricerca_famiglia (from processo_res)'] ? (Array.isArray(fields['descrizione_ricerca_famiglia (from processo_res)']) ? fields['descrizione_ricerca_famiglia (from processo_res)'][0] : fields['descrizione_ricerca_famiglia (from processo_res)']) : null,
+        match_disponibilità_famiglia_lavoratore: fields.match_disponibilità_famiglia_lavoratore || null,
         status: 'pending',
         airtable_id: record.id,
         stato_selezione: Array.isArray(fields.stato_selezione) ? fields.stato_selezione[0] : fields.stato_selezione,

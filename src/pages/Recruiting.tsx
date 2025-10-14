@@ -457,6 +457,124 @@ const Recruiting = () => {
                   </div>}
               </div>
 
+              {/* Info boxes - Distanza, Esperienza, Disponibilità */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Distanza */}
+                {currentLavoratore.travel_time_tra_cap && (
+                  <div 
+                    className={`rounded-lg p-3 border ${
+                      currentLavoratore.travel_time_flag === 'green' 
+                        ? 'bg-green-50 border-green-200' 
+                        : currentLavoratore.travel_time_flag === 'yellow'
+                        ? 'bg-yellow-50 border-yellow-200'
+                        : 'bg-red-50 border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Navigation 
+                        className={`w-4 h-4 ${
+                          currentLavoratore.travel_time_flag === 'green' 
+                            ? 'text-green-600' 
+                            : currentLavoratore.travel_time_flag === 'yellow'
+                            ? 'text-yellow-600'
+                            : 'text-red-600'
+                        }`}
+                      />
+                      <span className="text-xs font-semibold text-muted-foreground uppercase">Distanza</span>
+                    </div>
+                    <p className={`text-sm font-medium ${
+                      currentLavoratore.travel_time_flag === 'green' 
+                        ? 'text-green-700' 
+                        : currentLavoratore.travel_time_flag === 'yellow'
+                        ? 'text-yellow-700'
+                        : 'text-red-700'
+                    }`}>
+                      {currentLavoratore.travel_time_tra_cap} minuti
+                    </p>
+                  </div>
+                )}
+
+                {/* Anni di esperienza */}
+                {currentLavoratore.anni_esperienza_colf !== null && (
+                  <div 
+                    className={`rounded-lg p-3 border ${
+                      currentLavoratore.anni_esperienza_colf > 8
+                        ? 'bg-green-50 border-green-200' 
+                        : currentLavoratore.anni_esperienza_colf >= 3
+                        ? 'bg-yellow-50 border-yellow-200'
+                        : 'bg-red-50 border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Clock 
+                        className={`w-4 h-4 ${
+                          currentLavoratore.anni_esperienza_colf > 8
+                            ? 'text-green-600' 
+                            : currentLavoratore.anni_esperienza_colf >= 3
+                            ? 'text-yellow-600'
+                            : 'text-red-600'
+                        }`}
+                      />
+                      <span className="text-xs font-semibold text-muted-foreground uppercase">Esperienza</span>
+                    </div>
+                    <p className={`text-sm font-medium ${
+                      currentLavoratore.anni_esperienza_colf > 8
+                        ? 'text-green-700' 
+                        : currentLavoratore.anni_esperienza_colf >= 3
+                        ? 'text-yellow-700'
+                        : 'text-red-700'
+                    }`}>
+                      {currentLavoratore.anni_esperienza_colf} {currentLavoratore.anni_esperienza_colf === 1 ? 'anno' : 'anni'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Match Disponibilità */}
+                {currentLavoratore.match_disponibilità_famiglia_lavoratore && (() => {
+                  const matchText = String(currentLavoratore.match_disponibilità_famiglia_lavoratore);
+                  const lowerText = matchText.toLowerCase();
+                  const isComplete = lowerText.includes("corrisponde completamente");
+                  const isPartial = lowerText.includes("corrisponde parzialmente");
+                  const isNoMatch = lowerText.includes("non corrisponde");
+                  
+                  const colorClass = isComplete 
+                    ? 'bg-green-50 border-green-200' 
+                    : isNoMatch
+                    ? 'bg-red-50 border-red-200'
+                    : isPartial
+                    ? 'bg-yellow-50 border-yellow-200'
+                    : 'bg-gray-50 border-gray-200';
+                  
+                  const iconColorClass = isComplete 
+                    ? 'text-green-600' 
+                    : isNoMatch
+                    ? 'text-red-600'
+                    : isPartial
+                    ? 'text-yellow-600'
+                    : 'text-gray-600';
+                  
+                  const textColorClass = isComplete 
+                    ? 'text-green-700' 
+                    : isNoMatch
+                    ? 'text-red-700'
+                    : isPartial
+                    ? 'text-yellow-700'
+                    : 'text-gray-700';
+                  
+                  return (
+                    <div className={`rounded-lg p-3 border col-span-2 ${colorClass}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle className={`w-4 h-4 ${iconColorClass}`} />
+                        <span className="text-xs font-semibold text-muted-foreground uppercase">Disponibilità</span>
+                      </div>
+                      <p className={`text-sm font-medium ${textColorClass}`}>
+                        {matchText}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+
               {/* Feedback AI */}
               {currentLavoratore.feedback_ai && cleanFeedbackText(currentLavoratore.feedback_ai) && <div className="bg-accent/50 rounded-lg p-4 border border-border">
                   <div className="flex items-center justify-between mb-3">
@@ -481,79 +599,6 @@ const Recruiting = () => {
                         Fact-Check
                       </Button>
                     </div>
-                  </div>
-
-                  {/* Info boxes */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    {/* Distanza */}
-                    {currentLavoratore.travel_time_tra_cap && (
-                      <div 
-                        className={`rounded-lg p-3 border ${
-                          currentLavoratore.travel_time_flag === 'green' 
-                            ? 'bg-green-50 border-green-200' 
-                            : currentLavoratore.travel_time_flag === 'yellow'
-                            ? 'bg-yellow-50 border-yellow-200'
-                            : 'bg-red-50 border-red-200'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Navigation 
-                            className={`w-4 h-4 ${
-                              currentLavoratore.travel_time_flag === 'green' 
-                                ? 'text-green-600' 
-                                : currentLavoratore.travel_time_flag === 'yellow'
-                                ? 'text-yellow-600'
-                                : 'text-red-600'
-                            }`}
-                          />
-                          <span className="text-xs font-semibold text-muted-foreground uppercase">Distanza</span>
-                        </div>
-                        <p className={`text-sm font-medium ${
-                          currentLavoratore.travel_time_flag === 'green' 
-                            ? 'text-green-700' 
-                            : currentLavoratore.travel_time_flag === 'yellow'
-                            ? 'text-yellow-700'
-                            : 'text-red-700'
-                        }`}>
-                          {currentLavoratore.travel_time_tra_cap} minuti
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Anni di esperienza */}
-                    {currentLavoratore.anni_esperienza_colf !== null && (
-                      <div 
-                        className={`rounded-lg p-3 border ${
-                          currentLavoratore.anni_esperienza_colf > 8
-                            ? 'bg-green-50 border-green-200' 
-                            : currentLavoratore.anni_esperienza_colf >= 3
-                            ? 'bg-yellow-50 border-yellow-200'
-                            : 'bg-red-50 border-red-200'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Clock 
-                            className={`w-4 h-4 ${
-                              currentLavoratore.anni_esperienza_colf > 8
-                                ? 'text-green-600' 
-                                : currentLavoratore.anni_esperienza_colf >= 3
-                                ? 'text-yellow-600'
-                                : 'text-red-600'
-                            }`}
-                          />
-                          <span className="text-xs font-semibold text-muted-foreground uppercase">Esperienza</span>
-                        </div>
-                        <p className={`text-sm font-medium ${
-                          currentLavoratore.anni_esperienza_colf > 8
-                            ? 'text-green-700' 
-                            : currentLavoratore.anni_esperienza_colf >= 3
-                            ? 'text-yellow-700'
-                            : 'text-red-700'
-                        }`}>
-                          {currentLavoratore.anni_esperienza_colf} {currentLavoratore.anni_esperienza_colf === 1 ? 'anno' : 'anni'}
-                        </p>
-                      </div>
-                    )}
                   </div>
 
                   <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">

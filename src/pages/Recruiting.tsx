@@ -175,9 +175,7 @@ const Recruiting = () => {
   const loadProcessiRes = async () => {
     try {
       // Fetch directly from Airtable to get processo list
-      const { data, error } = await supabase.functions.invoke('fetch-airtable-candidates', {
-        body: { processo_res: 'all' }
-      });
+      const { data, error } = await supabase.functions.invoke('fetch-airtable-candidates');
 
       if (error) throw error;
 
@@ -203,10 +201,12 @@ const Recruiting = () => {
     setLoading(true);
     setCurrentIndex(0);
     try {
-      // Fetch directly from Airtable via edge function
-      const { data, error } = await supabase.functions.invoke('fetch-airtable-candidates', {
-        body: { processo_res: selectedProcesso }
-      });
+      // Fetch directly from Airtable via edge function with query parameter
+      const url = selectedProcesso && selectedProcesso !== 'all' 
+        ? `fetch-airtable-candidates?processo_res=${encodeURIComponent(selectedProcesso)}`
+        : 'fetch-airtable-candidates';
+      
+      const { data, error } = await supabase.functions.invoke(url);
 
       if (error) throw error;
       

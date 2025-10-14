@@ -42,6 +42,7 @@ interface Lavoratore {
   stato_processo_res: string | null;
   match_disponibilità_famiglia_lavoratore: string | null;
   disponibilità_settimanale_recap: string | null;
+  feedback_recruiter: string | null;
 }
 const Recruiting = () => {
   const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);
@@ -636,6 +637,16 @@ const Recruiting = () => {
                     <ReactMarkdown>{cleanFeedbackText(currentLavoratore.feedback_ai)}</ReactMarkdown>
                   </div>
                 </div>}
+
+              {/* Feedback Recruiter */}
+              {currentLavoratore.feedback_recruiter && (
+                <div className="bg-accent/50 rounded-lg p-4 border border-border">
+                  <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Feedback Recruiter</h3>
+                  <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                    {currentLavoratore.feedback_recruiter}
+                  </div>
+                </div>
+              )}
 
               {/* Esperienza */}
               {currentLavoratore.riassunto_esperienze_completo && <div>

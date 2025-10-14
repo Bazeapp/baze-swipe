@@ -12,6 +12,7 @@ interface Lavoratore {
   descrizione_ricerca_famiglia: string | null;
   descrizione_personale: string | null;
   mansioni_richieste: string | null;
+  match_disponibilità_famiglia_lavoratore: string | null;
 }
 
 interface SourceDataDrawerProps {
@@ -58,7 +59,26 @@ const cleanText = (text: any) => {
 export function SourceDataDrawer({ open, onOpenChange, lavoratore }: SourceDataDrawerProps) {
   if (!lavoratore) return null;
 
+  const getMatchColor = (text: string | null) => {
+    if (!text) return "bg-gray-500/10 text-gray-700";
+    const lowerText = String(text).toLowerCase();
+    if (lowerText.includes("corrisponde completamente")) {
+      return "bg-green-500/10 text-green-700";
+    } else if (lowerText.includes("non corrisponde")) {
+      return "bg-red-500/10 text-red-700";
+    } else if (lowerText.includes("corrisponde parzialmente")) {
+      return "bg-yellow-500/10 text-yellow-700";
+    }
+    return "bg-gray-500/10 text-gray-700";
+  };
+
   const sourceFields = [
+    {
+      title: "Match Disponibilità Famiglia-Lavoratore",
+      content: cleanText(lavoratore.match_disponibilità_famiglia_lavoratore),
+      category: "Match",
+      color: getMatchColor(lavoratore.match_disponibilità_famiglia_lavoratore)
+    },
     {
       title: "Chi Sono",
       content: cleanText(lavoratore.chi_sono),

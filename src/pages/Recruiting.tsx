@@ -39,6 +39,7 @@ interface Lavoratore {
   status: string;
   stato_selezione: string | null;
   stato_processo_res: string | null;
+  match_disponibilità_famiglia_lavoratore: string | null;
 }
 const Recruiting = () => {
   const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);

@@ -56,55 +56,19 @@ const Recruiting = () => {
   const [feedbackIssue, setFeedbackIssue] = useState("");
   const [decisionDialogOpen, setDecisionDialogOpen] = useState(false);
   const [pendingDecision, setPendingDecision] = useState<"pass" | "no_pass" | null>(null);
-  const [photoSignedUrls, setPhotoSignedUrls] = useState<Record<string, string>>({});
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const {
     toast
   } = useToast();
 
-  // Helper function to get signed URLs for photos
-  const getSignedPhotoUrl = async (photoPath: string | null): Promise<string | null> => {
-    if (!photoPath) return null;
-    
-    // If already a full URL, return as-is (for Airtable URLs)
-    if (photoPath.startsWith('http')) return photoPath;
-
-    // Check if we already have a signed URL cached
-    if (photoSignedUrls[photoPath]) {
-      return photoSignedUrls[photoPath];
-    }
-
-    try {
-      const { data, error } = await supabase.storage
-        .from('candidate-photos')
-        .createSignedUrl(photoPath, 3600); // 1 hour expiry
-
-      if (error) {
-        console.error('Error creating signed URL:', error);
-        return null;
-      }
-
-      // Cache the signed URL
-      setPhotoSignedUrls(prev => ({ ...prev, [photoPath]: data.signedUrl }));
-      return data.signedUrl;
-    } catch (error) {
-      console.error('Error getting signed URL:', error);
-      return null;
-    }
-  };
-
-  // Load signed URL for current photo
+  // Load current photo
   useEffect(() => {
-    const loadCurrentPhoto = async () => {
-      if (lavoratori[currentIndex]?.foto_url) {
-        const signedUrl = await getSignedPhotoUrl(lavoratori[currentIndex].foto_url);
-        setCurrentPhotoUrl(signedUrl);
-      } else {
-        setCurrentPhotoUrl(null);
-      }
-    };
-    loadCurrentPhoto();
+    if (lavoratori[currentIndex]?.foto_url) {
+      setCurrentPhotoUrl(lavoratori[currentIndex].foto_url);
+    } else {
+      setCurrentPhotoUrl(null);
+    }
   }, [currentIndex, lavoratori]);
   const cleanFeedbackText = (text: string) => {
     if (!text) return "";
@@ -176,15 +140,16 @@ const Recruiting = () => {
   };
   const loadProcessiRes = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from("lavoratori_selezionati").select("processo_res, email_processo_res_famiglia").not("processo_res", "is", null).eq("status", "pending").in("stato_selezione", ["Prospetto", "Candidato Good Fit"]).in("stato_processo_res", ["da assegnare", "raccolta candidature", "fare ricerca"]);
+      // Fetch directly from Airtable to get processo list
+      const { data, error } = await supabase.functions.invoke('fetch-airtable-candidates', {
+        body: { processo_res: 'all' }
+      });
+
       if (error) throw error;
 
       // Get unique processo_res values with their email labels
       const processiMap = new Map<string, string>();
-      data.forEach(item => {
+      (data?.lavoratori || []).forEach((item: any) => {
         if (item.processo_res && !processiMap.has(item.processo_res)) {
           processiMap.set(item.processo_res, item.email_processo_res_famiglia || item.processo_res);
         }
@@ -204,20 +169,14 @@ const Recruiting = () => {
     setLoading(true);
     setCurrentIndex(0);
     try {
-      let query = supabase.from("lavoratori_selezionati").select("*").eq("status", "pending").in("stato_selezione", ["Prospetto", "Candidato Good Fit"]).in("stato_processo_res", ["da assegnare", "raccolta candidature", "fare ricerca"]);
+      // Fetch directly from Airtable via edge function
+      const { data, error } = await supabase.functions.invoke('fetch-airtable-candidates', {
+        body: { processo_res: selectedProcesso }
+      });
 
-      // Filter by selected processo if not "all"
-      if (selectedProcesso !== "all") {
-        query = query.eq("processo_res", selectedProcesso);
-      }
-      const {
-        data,
-        error
-      } = await query.order("created_at", {
-        ascending: false
-      }).limit(50);
       if (error) throw error;
-      setLavoratori(data || []);
+      
+      setLavoratori(data?.lavoratori || []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -270,32 +229,19 @@ const Recruiting = () => {
     setPendingDecision(null);
     setCurrentIndex(prev => prev + 1);
   };
-  const handleSyncToAirtable = async () => {
+  const handleRefreshFromAirtable = async () => {
     setIsSyncing(true);
     try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('sync-airtable');
-      if (error) {
-        toast({
-          title: "Sync Failed",
-          description: error.message,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Sync Complete",
-          description: data.message
-        });
-        // Reload lavoratori
-        loadLavoratori();
-      }
-    } catch (error) {
-      console.error('Sync error:', error);
+      await loadLavoratori();
       toast({
-        title: "Sync Error",
-        description: "Failed to sync with Airtable",
+        title: "Aggiornato",
+        description: "Dati caricati da Airtable"
+      });
+    } catch (error) {
+      console.error('Refresh error:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare da Airtable",
         variant: "destructive"
       });
     } finally {
@@ -368,9 +314,9 @@ const Recruiting = () => {
               Hai revisionato tutti i profili. Ottimo lavoro!
             </p>
             <div className="flex flex-col gap-2 w-full">
-              <Button onClick={handleSyncToAirtable} disabled={isSyncing} className="gap-2">
+              <Button onClick={handleRefreshFromAirtable} disabled={isSyncing} className="gap-2">
                 <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                {isSyncing ? 'Sincronizzando...' : 'Importa da Airtable'}
+                {isSyncing ? 'Caricamento...' : 'Ricarica da Airtable'}
               </Button>
               <Button onClick={handleLogout} variant="outline">
                 <LogOut className="w-4 h-4 mr-2" />
@@ -397,9 +343,9 @@ const Recruiting = () => {
               </div>
             </div>
             <div className="flex gap-2 items-center">
-              <Button onClick={handleSyncToAirtable} disabled={isSyncing} variant="outline" size="sm" className="gap-2 text-muted-foreground border-input hover:bg-muted">
+              <Button onClick={handleRefreshFromAirtable} disabled={isSyncing} variant="outline" size="sm" className="gap-2 text-muted-foreground border-input hover:bg-muted">
                 <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                {isSyncing ? 'Sync...' : 'Import'}
+                {isSyncing ? 'Loading...' : 'Refresh'}
               </Button>
               <Button onClick={handleLogout} variant="ghost" size="sm" className="text-muted-foreground">
                 <LogOut className="w-4 h-4 mr-2" />

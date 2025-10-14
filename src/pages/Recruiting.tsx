@@ -369,7 +369,7 @@ const Recruiting = () => {
               <img src={bazeLogo} alt="Baze" className="h-8" />
               <div className="h-6 w-px bg-border" />
               <div>
-                <h1 className="text-xl font-semibold text-foreground">Recruiting Dashboard</h1>
+                <h1 className="text-xl font-semibold text-foreground">{currentLavoratore.processo_res || 'Recruiting Dashboard'}</h1>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Profilo {currentIndex + 1} di {lavoratori.length}
                 </p>
@@ -409,7 +409,7 @@ const Recruiting = () => {
                       <SelectItem value="all">Tutti i processi</SelectItem>
                       {processiRes.map(processo => {
                       const lavoratore = lavoratori.find(l => l.processo_res === processo);
-                      const label = lavoratore?.email_processo_res_famiglia || processo;
+                      const label = lavoratore?.processo_res || processo;
                       return <SelectItem key={processo} value={processo}>
                             {label}
                           </SelectItem>;

@@ -82,7 +82,9 @@ Deno.serve(async (req) => {
     // Group by processo_res to get unique processes
     const processoMap = new Map<string, AirtableRecord>()
     for (const record of records) {
-      const processo = record.fields.processo_res
+      // Normalize processo_res - extract first element if array
+      const processoRaw = record.fields.processo_res
+      const processo = Array.isArray(processoRaw) ? processoRaw[0] : processoRaw
       if (processo && !processoMap.has(processo)) {
         processoMap.set(processo, record)
       }

@@ -43,6 +43,8 @@ interface Lavoratore {
   match_disponibilità_famiglia_lavoratore: string | null;
   disponibilità_settimanale_recap: string | null;
   feedback_recruiter: string | null;
+  indirizzo_lavoratore: string | null;
+  indirizzo_famiglia: string | null;
 }
 const Recruiting = () => {
   const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);
@@ -461,7 +463,7 @@ const Recruiting = () => {
               </div>
 
               {/* Info boxes - Distanza, Esperienza, Disponibilità */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
                 {/* Distanza */}
                 {currentLavoratore.travel_time_tra_cap && (
                   <div 
@@ -473,17 +475,29 @@ const Recruiting = () => {
                         : 'bg-red-50 border-red-200'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Navigation 
-                        className={`w-4 h-4 ${
-                          currentLavoratore.travel_time_flag === 'green' 
-                            ? 'text-green-600' 
-                            : currentLavoratore.travel_time_flag === 'yellow'
-                            ? 'text-yellow-600'
-                            : 'text-red-600'
-                        }`}
-                      />
-                      <span className="text-xs font-semibold text-muted-foreground uppercase">Distanza</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <Navigation 
+                          className={`w-4 h-4 ${
+                            currentLavoratore.travel_time_flag === 'green' 
+                              ? 'text-green-600' 
+                              : currentLavoratore.travel_time_flag === 'yellow'
+                              ? 'text-yellow-600'
+                              : 'text-red-600'
+                          }`}
+                        />
+                        <span className="text-xs font-semibold text-muted-foreground uppercase">Distanza</span>
+                      </div>
+                      {currentLavoratore.indirizzo_lavoratore && currentLavoratore.indirizzo_famiglia && (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(currentLavoratore.indirizzo_lavoratore)}&destination=${encodeURIComponent(currentLavoratore.indirizzo_famiglia)}&travelmode=transit`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:opacity-70 transition-opacity"
+                        >
+                          <MapPin className="w-4 h-4 text-muted-foreground" />
+                        </a>
+                      )}
                     </div>
                     <p className={`text-sm font-medium ${
                       currentLavoratore.travel_time_flag === 'green' 
@@ -573,7 +587,7 @@ const Recruiting = () => {
                     : 'text-gray-700';
                   
                   return (
-                    <div className={`rounded-lg p-3 border col-span-2 ${colorClass}`}>
+                    <div className={`rounded-lg p-3 border ${colorClass}`}>
                       <div className="flex items-center gap-2 mb-1">
                         <CheckCircle className={`w-4 h-4 ${iconColorClass}`} />
                         <span className="text-xs font-semibold text-muted-foreground uppercase">Disponibilità</span>

@@ -150,6 +150,8 @@ Deno.serve(async (req) => {
         match_disponibilità_famiglia_lavoratore: matchDisponibilita,
         disponibilità_settimanale_recap: fields.disponibilità_settimanale_recap || null,
         feedback_recruiter: fields.feedback_recruiter || null,
+        indirizzo_lavoratore: fields.indirizzo_lavoratore || null,
+        indirizzo_famiglia: fields['indirizzo_famiglia (from processo_res)'] ? (Array.isArray(fields['indirizzo_famiglia (from processo_res)']) ? fields['indirizzo_famiglia (from processo_res)'][0] : fields['indirizzo_famiglia (from processo_res)']) : null,
         status: 'pending',
         airtable_id: record.id,
         stato_selezione: Array.isArray(fields.stato_selezione) ? fields.stato_selezione[0] : fields.stato_selezione,

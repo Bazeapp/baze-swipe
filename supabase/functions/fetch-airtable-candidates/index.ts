@@ -108,25 +108,25 @@ Deno.serve(async (req) => {
       const esperienzeRecords: AirtableRecord[] = esperienzeData.records || []
       console.log(`Found ${esperienzeRecords.length} esperienze records`)
       
-      // Group mansioni by id_lavoratori
+      // Group mansioni by id_lavoratore (singular)
       for (const expRecord of esperienzeRecords) {
-        const idLavoratori = expRecord.fields.id_lavoratori
-        const idLavoratoriNormalized = Array.isArray(idLavoratori) ? idLavoratori[0] : idLavoratori
+        const idLavoratore = expRecord.fields.id_lavoratore
+        const idLavoratoreNormalized = Array.isArray(idLavoratore) ? idLavoratore[0] : idLavoratore
         
         // Debug logging
         console.log('Exp record fields:', JSON.stringify(Object.keys(expRecord.fields)))
-        console.log('id_lavoratori raw:', JSON.stringify(idLavoratori))
-        console.log('id_lavoratori normalized:', idLavoratoriNormalized)
+        console.log('id_lavoratore raw:', JSON.stringify(idLavoratore))
+        console.log('id_lavoratore normalized:', idLavoratoreNormalized)
         
-        if (idLavoratoriNormalized) {
-          if (!esperienzeMap.has(idLavoratoriNormalized)) {
-            esperienzeMap.set(idLavoratoriNormalized, [])
+        if (idLavoratoreNormalized) {
+          if (!esperienzeMap.has(idLavoratoreNormalized)) {
+            esperienzeMap.set(idLavoratoreNormalized, [])
           }
           
           const mansioni = expRecord.fields.manzioni || expRecord.fields.mansioni
           console.log('mansioni found:', mansioni)
           if (mansioni) {
-            esperienzeMap.get(idLavoratoriNormalized)?.push(mansioni)
+            esperienzeMap.get(idLavoratoreNormalized)?.push(mansioni)
           }
         }
       }

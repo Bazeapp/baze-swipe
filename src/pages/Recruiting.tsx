@@ -782,7 +782,7 @@ const Recruiting = () => {
       </div>
 
       {/* Fixed Bottom Bar for Pass/No Pass */}
-      <div className="fixed bottom-0 left-64 right-0 bg-background border-t border-border shadow-lg z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-lg z-50">
         <div className="max-w-7xl mx-auto px-6 py-4">
           {showRejectionInput ? (
             <div className="flex gap-3 items-end max-w-2xl mx-auto">

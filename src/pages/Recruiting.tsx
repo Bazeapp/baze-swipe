@@ -651,12 +651,25 @@ const Recruiting = () => {
                 </div>}
 
               {/* Esperienza */}
-              {currentLavoratore.riassunto_esperienze_completo && <div>
-                  <h3 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Esperienza</h3>
-                  <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                    <ReactMarkdown>{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</ReactMarkdown>
-                  </div>
-                </div>}
+              {currentLavoratore.riassunto_esperienze_completo && (
+                <div className="bg-muted/30 rounded-lg p-4 border border-border">
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="experience" className="border-0">
+                      <AccordionTrigger className="py-0 hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="w-4 h-4" />
+                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Esperienza</h3>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="mt-3 text-sm text-foreground leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
+                          <ReactMarkdown>{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</ReactMarkdown>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
+              )}
             </CardContent>
           </Card>
 

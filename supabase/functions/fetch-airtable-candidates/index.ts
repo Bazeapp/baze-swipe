@@ -80,10 +80,30 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${records.length} total records in Airtable`)
 
+    // Fetch processo_res table to get recruiters
+    const processoResUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/processo_res`
+    console.log('Fetching processo_res table from Airtable')
+    
+    const processoResResponse = await fetch(processoResUrl, {
+      headers: {
+        'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+      }
+    })
+
+    if (!processoResResponse.ok) {
+      console.error('Airtable processo_res API error:', processoResResponse.status)
+      throw new Error(`Airtable processo_res API error: ${processoResResponse.statusText}`)
+    }
+
+    const processoResData = await processoResResponse.json()
+    const processoResRecords: AirtableRecord[] = processoResData.records || []
+    
+    console.log(`Found ${processoResRecords.length} processo_res records`)
+
     // Extract unique recruiters from processo_res
     const recruitersSet = new Set<string>()
-    for (const record of records) {
-      const recruiterField = record.fields.recruiter_ricerca_e_selezione
+    for (const processoRecord of processoResRecords) {
+      const recruiterField = processoRecord.fields.recruiter_ricerca_e_selezione
       if (recruiterField) {
         const recruiter = Array.isArray(recruiterField) ? recruiterField[0] : recruiterField
         if (recruiter) {

@@ -113,17 +113,25 @@ Deno.serve(async (req) => {
         const idLavoratori = expRecord.fields.id_lavoratori
         const idLavoratoriNormalized = Array.isArray(idLavoratori) ? idLavoratori[0] : idLavoratori
         
+        // Debug logging
+        console.log('Exp record fields:', JSON.stringify(Object.keys(expRecord.fields)))
+        console.log('id_lavoratori raw:', JSON.stringify(idLavoratori))
+        console.log('id_lavoratori normalized:', idLavoratoriNormalized)
+        
         if (idLavoratoriNormalized) {
           if (!esperienzeMap.has(idLavoratoriNormalized)) {
             esperienzeMap.set(idLavoratoriNormalized, [])
           }
           
           const mansioni = expRecord.fields.manzioni || expRecord.fields.mansioni
+          console.log('mansioni found:', mansioni)
           if (mansioni) {
             esperienzeMap.get(idLavoratoriNormalized)?.push(mansioni)
           }
         }
       }
+      console.log('Esperienze map size:', esperienzeMap.size)
+      console.log('Esperienze map keys:', Array.from(esperienzeMap.keys()))
     } else {
       console.warn('Could not fetch esperienze_lavoratore:', esperienzeResponse.statusText)
     }
@@ -164,7 +172,11 @@ Deno.serve(async (req) => {
 
       // Get lavoratori_id for matching with esperienze
       const lavoratoriId = Array.isArray(fields.lavoratori_id) ? fields.lavoratori_id[0] : fields.lavoratori_id
+      console.log('Main record fields:', JSON.stringify(Object.keys(fields)))
+      console.log('lavoratori_id raw:', JSON.stringify(fields.lavoratori_id))
+      console.log('lavoratori_id normalized:', lavoratoriId)
       const mansioniList = lavoratoriId ? esperienzeMap.get(lavoratoriId) || [] : []
+      console.log('mansioni list for this lavoratore:', mansioniList.length)
 
       const lavoratore = {
         id: record.id,

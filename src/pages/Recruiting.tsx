@@ -24,6 +24,7 @@ interface Lavoratore {
   anni_esperienza_colf: number | null;
   descrizione_personale: string | null;
   riassunto_esperienze_completo: string | null;
+  mansioni_esperienze?: string[];
   feedback_ai: string | null;
   processo: string | null;
   processo_res: string | null;
@@ -544,7 +545,7 @@ const Recruiting = () => {
                     </p>
 
                     {/* Accordion for detailed experience */}
-                    {currentLavoratore.riassunto_esperienze_completo && (
+                    {(currentLavoratore.mansioni_esperienze?.length > 0 || currentLavoratore.riassunto_esperienze_completo) && (
                       <Accordion type="single" collapsible className="mt-3">
                         <AccordionItem value="experience" className="border-0">
                           <AccordionTrigger className="py-2 hover:no-underline">
@@ -554,9 +555,24 @@ const Recruiting = () => {
                             </div>
                           </AccordionTrigger>
                           <AccordionContent>
-                            <div className="mt-2 p-3 bg-background/50 rounded border text-xs prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
-                              <ReactMarkdown>{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</ReactMarkdown>
-                            </div>
+                            {currentLavoratore.mansioni_esperienze && currentLavoratore.mansioni_esperienze.length > 0 && (
+                              <div className="mt-2 mb-3">
+                                <h4 className="text-xs font-semibold mb-2 text-muted-foreground">Mansioni:</h4>
+                                <ul className="space-y-1">
+                                  {currentLavoratore.mansioni_esperienze.map((mansione, idx) => (
+                                    <li key={idx} className="text-xs text-foreground flex items-start gap-2">
+                                      <span className="text-primary mt-0.5">•</span>
+                                      <span>{mansione}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {currentLavoratore.riassunto_esperienze_completo && (
+                              <div className="mt-2 p-3 bg-background/50 rounded border text-xs prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
+                                <ReactMarkdown>{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</ReactMarkdown>
+                              </div>
+                            )}
                           </AccordionContent>
                         </AccordionItem>
                       </Accordion>

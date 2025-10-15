@@ -92,6 +92,42 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${processoMap.size} unique processo_res values`)
 
+    // Fetch esperienze_lavoratore table
+    const esperienzeUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/esperienze_lavoratore`
+    console.log('Fetching esperienze_lavoratore from Airtable')
+    
+    const esperienzeResponse = await fetch(esperienzeUrl, {
+      headers: {
+        'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+      }
+    })
+
+    let esperienzeMap = new Map<string, any[]>()
+    if (esperienzeResponse.ok) {
+      const esperienzeData = await esperienzeResponse.json()
+      const esperienzeRecords: AirtableRecord[] = esperienzeData.records || []
+      console.log(`Found ${esperienzeRecords.length} esperienze records`)
+      
+      // Group mansioni by id_lavoratori
+      for (const expRecord of esperienzeRecords) {
+        const idLavoratori = expRecord.fields.id_lavoratori
+        const idLavoratoriNormalized = Array.isArray(idLavoratori) ? idLavoratori[0] : idLavoratori
+        
+        if (idLavoratoriNormalized) {
+          if (!esperienzeMap.has(idLavoratoriNormalized)) {
+            esperienzeMap.set(idLavoratoriNormalized, [])
+          }
+          
+          const mansioni = expRecord.fields.manzioni || expRecord.fields.mansioni
+          if (mansioni) {
+            esperienzeMap.get(idLavoratoriNormalized)?.push(mansioni)
+          }
+        }
+      }
+    } else {
+      console.warn('Could not fetch esperienze_lavoratore:', esperienzeResponse.statusText)
+    }
+
     // Convert to lavoratori format
     const lavoratori = []
     for (const [processo, record] of processoMap) {
@@ -126,6 +162,10 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Get lavoratori_id for matching with esperienze
+      const lavoratoriId = Array.isArray(fields.lavoratori_id) ? fields.lavoratori_id[0] : fields.lavoratori_id
+      const mansioniList = lavoratoriId ? esperienzeMap.get(lavoratoriId) || [] : []
+
       const lavoratore = {
         id: record.id,
         nome,
@@ -137,6 +177,7 @@ Deno.serve(async (req) => {
         anni_esperienza_colf: Array.isArray(fields.anni_esperienza_colf) ? fields.anni_esperienza_colf[0] : fields.anni_esperienza_colf,
         descrizione_personale: fields.chi_sono || null,
         riassunto_esperienze_completo: fields.riassunto_esperienze_completo || null,
+        mansioni_esperienze: mansioniList,
         feedback_ai: fields.ai_agent_profiler || null,
         processo: Array.isArray(fields.processo) ? fields.processo[0] : fields.processo,
         processo_res: processo,

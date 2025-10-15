@@ -150,6 +150,12 @@ Deno.serve(async (req) => {
       }
 
       const fields = record.fields
+      
+      // Debug: Log ALL available fields in the main record
+      console.log('=== MAIN WORKER RECORD ===')
+      console.log('record.id:', record.id)
+      console.log('All fields available:', JSON.stringify(Object.keys(fields)))
+      console.log('Looking for lavoratori_id field...')
 
       // Get nome from reference field
       let nome = 'Nome non specificato'
@@ -171,12 +177,28 @@ Deno.serve(async (req) => {
       }
 
       // Get lavoratori_id for matching with esperienze
-      const lavoratoriId = Array.isArray(fields.lavoratori_id) ? fields.lavoratori_id[0] : fields.lavoratori_id
-      console.log('Main record fields:', JSON.stringify(Object.keys(fields)))
-      console.log('lavoratori_id raw:', JSON.stringify(fields.lavoratori_id))
-      console.log('lavoratori_id normalized:', lavoratoriId)
+      // Try multiple possible field names
+      const possibleIdFields = ['lavoratori_id', 'lavoratore', 'id_lavoratore', 'record_id']
+      let lavoratoriId = null
+      
+      for (const fieldName of possibleIdFields) {
+        if (fields[fieldName]) {
+          const rawValue = fields[fieldName]
+          lavoratoriId = Array.isArray(rawValue) ? rawValue[0] : rawValue
+          console.log(`Found ID in field '${fieldName}':`, lavoratoriId)
+          break
+        }
+      }
+      
+      if (!lavoratoriId) {
+        console.log('❌ No lavoratori_id found in any field!')
+        console.log('Available fields:', Object.keys(fields))
+      }
+      
+      console.log('Looking up in esperienzeMap for:', lavoratoriId)
+      console.log('esperienzeMap keys:', Array.from(esperienzeMap.keys()).slice(0, 10))
       const mansioniList = lavoratoriId ? esperienzeMap.get(lavoratoriId) || [] : []
-      console.log('mansioni list for this lavoratore:', mansioniList.length)
+      console.log('✅ mansioni list for this lavoratore:', mansioniList.length, mansioniList)
 
       const lavoratore = {
         id: record.id,

@@ -138,6 +138,13 @@ Deno.serve(async (req) => {
 
     // Convert to lavoratori format
     const lavoratori = []
+    
+    console.log('========================================')
+    console.log('🚀 Starting to convert records to lavoratori format')
+    console.log('processoMap size:', processoMap.size)
+    console.log('processo_res filter:', processoRes)
+    console.log('========================================')
+    
     for (const [processo, record] of processoMap) {
       // Filter by processo_res if specified
       if (processoRes && processoRes !== 'all' && processo !== processoRes) {
@@ -150,6 +157,10 @@ Deno.serve(async (req) => {
       }
 
       const fields = record.fields
+      
+      console.log('---------- PROCESSING WORKER RECORD ----------')
+      console.log('Record ID:', record.id)
+      console.log('Processo:', processo)
 
       // Get nome from reference field
       let nome = 'Nome non specificato'
@@ -171,24 +182,32 @@ Deno.serve(async (req) => {
       }
 
       // Get lavoratore_id for matching with esperienze
-      console.log('🔍 Searching for lavoratore_id in fields...')
-      console.log('Available fields:', Object.keys(fields))
-      console.log('lavoratore_id value:', fields.lavoratore_id)
+      console.log('STEP 1: Looking for lavoratore_id field')
+      console.log('All available fields in record:', Object.keys(fields))
+      console.log('lavoratore_id field value:', fields.lavoratore_id)
+      console.log('lavoratori_id field value:', fields.lavoratori_id)  
+      console.log('id_lavoratore field value:', fields.id_lavoratore)
       
       const lavoratoreId = Array.isArray(fields.lavoratore_id) ? fields.lavoratore_id[0] : fields.lavoratore_id
       
-      console.log('📋 Normalized lavoratore_id:', lavoratoreId)
-      console.log('🗺️ esperienzeMap size:', esperienzeMap.size)
-      console.log('🔑 esperienzeMap keys sample:', Array.from(esperienzeMap.keys()).slice(0, 10))
-      console.log('🔍 Looking for key:', lavoratoreId)
-      console.log('✅ Key exists in map?', esperienzeMap.has(lavoratoreId))
+      console.log('STEP 2: Normalized lavoratore_id value:', lavoratoreId)
+      console.log('STEP 3: esperienzeMap info')
+      console.log('  - Map size:', esperienzeMap.size)
+      console.log('  - First 10 keys:', Array.from(esperienzeMap.keys()).slice(0, 10))
+      console.log('STEP 4: Checking if key exists')
+      console.log('  - Looking for key:', lavoratoreId)
+      console.log('  - Key exists?', lavoratoreId ? esperienzeMap.has(lavoratoreId) : false)
       
       const mansioniList = lavoratoreId ? esperienzeMap.get(lavoratoreId) || [] : []
       
-      console.log('📦 Mansioni found:', mansioniList.length, 'items')
+      console.log('STEP 5: Result')
+      console.log('  - Mansioni found:', mansioniList.length, 'items')
       if (mansioniList.length > 0) {
-        console.log('📄 First mansioni:', mansioniList[0])
+        console.log('  - First item:', JSON.stringify(mansioniList[0]))
+      } else {
+        console.log('  - NO MANSIONI FOUND FOR THIS WORKER')
       }
+      console.log('---------- END WORKER RECORD ----------')
 
       const lavoratore = {
         id: record.id,

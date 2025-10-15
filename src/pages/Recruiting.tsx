@@ -509,6 +509,7 @@ const Recruiting = () => {
                   </p>
                 </div>
 
+
                 {/* Anni di esperienza */}
                 {currentLavoratore.anni_esperienza_colf !== null && (
                   <div 
@@ -541,8 +542,28 @@ const Recruiting = () => {
                     }`}>
                       {currentLavoratore.anni_esperienza_colf} {currentLavoratore.anni_esperienza_colf === 1 ? 'anno' : 'anni'}
                     </p>
+
+                    {/* Accordion for detailed experience */}
+                    {currentLavoratore.riassunto_esperienze_completo && (
+                      <Accordion type="single" collapsible className="mt-3">
+                        <AccordionItem value="experience" className="border-0">
+                          <AccordionTrigger className="py-2 hover:no-underline">
+                            <div className="flex items-center gap-2">
+                              <Briefcase className="w-4 h-4" />
+                              <span className="text-xs font-medium">Vedi dettaglio esperienze</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="mt-2 p-3 bg-background/50 rounded border text-xs prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
+                              <ReactMarkdown>{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</ReactMarkdown>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    )}
                   </div>
                 )}
+
 
                 {/* Match Disponibilità */}
                 {currentLavoratore.match_disponibilità_famiglia_lavoratore && (() => {
@@ -649,27 +670,6 @@ const Recruiting = () => {
                     <ReactMarkdown>{cleanFeedbackText(currentLavoratore.feedback_ai)}</ReactMarkdown>
                   </div>
                 </div>}
-
-              {/* Esperienza */}
-              {currentLavoratore.riassunto_esperienze_completo && (
-                <div className="bg-muted/30 rounded-lg p-4 border border-border">
-                  <Accordion type="single" collapsible>
-                    <AccordionItem value="experience" className="border-0">
-                      <AccordionTrigger className="py-0 hover:no-underline">
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="w-4 h-4" />
-                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Esperienza</h3>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="mt-3 text-sm text-foreground leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
-                          <ReactMarkdown>{cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)}</ReactMarkdown>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </div>
-              )}
             </CardContent>
           </Card>
 

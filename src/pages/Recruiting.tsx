@@ -6,12 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText, AlertCircle, Navigation, Clock, Calendar } from "lucide-react";
+import { CheckCircle, XCircle, Briefcase, MapPin, LogOut, RefreshCw, FileText, AlertCircle, Navigation, Clock, Calendar, Menu } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import ReactMarkdown from "react-markdown";
 import { SourceDataDrawer } from "@/components/SourceDataDrawer";
 import { DecisionDialog } from "@/components/DecisionDialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import bazeLogo from "@/assets/baze-logo.svg";
 interface Lavoratore {
   id: string;
@@ -68,6 +69,7 @@ const Recruiting = () => {
   const [decisionDialogOpen, setDecisionDialogOpen] = useState(false);
   const [pendingDecision, setPendingDecision] = useState<"pass" | "no_pass" | null>(null);
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const {
     toast
@@ -397,31 +399,36 @@ const Recruiting = () => {
       </div>;
   }
   return <div className="min-h-screen bg-background flex">
-      {/* Sidebar with Recruiters */}
-      <div className="w-64 bg-card border-r border-border flex flex-col">
-        <div className="p-4 border-b border-border">
-          <img src={bazeLogo} alt="Baze" className="h-8 mb-4" />
-          <h2 className="text-sm font-semibold text-muted-foreground">RECRUITER</h2>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {recruiters.map((recruiter) => (
-            <button
-              key={recruiter}
-              onClick={() => {
-                setSelectedRecruiter(recruiter);
-                setSelectedProcesso("all");
-              }}
-              className={`w-full px-4 py-3 text-left text-sm transition-colors ${
-                selectedRecruiter === recruiter
-                  ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary'
-                  : 'text-foreground hover:bg-muted'
-              }`}
-            >
-              {recruiter}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Sidebar Drawer */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" className="w-64 p-0">
+          <div className="h-full flex flex-col">
+            <div className="p-4 border-b border-border">
+              <img src={bazeLogo} alt="Baze" className="h-8 mb-4" />
+              <h2 className="text-sm font-semibold text-muted-foreground">RECRUITER</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {recruiters.map((recruiter) => (
+                <button
+                  key={recruiter}
+                  onClick={() => {
+                    setSelectedRecruiter(recruiter);
+                    setSelectedProcesso("all");
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full px-4 py-3 text-left text-sm transition-colors ${
+                    selectedRecruiter === recruiter
+                      ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary'
+                      : 'text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {recruiter}
+                </button>
+              ))}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
@@ -429,11 +436,21 @@ const Recruiting = () => {
         <div className="bg-card border-b border-border">
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-semibold text-foreground">{currentLavoratore.processo || 'Processo'}</h1>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Profilo {currentIndex + 1} di {lavoratori.length} • {selectedRecruiter}
-                </p>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => setSidebarOpen(true)}
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+                <div>
+                  <h1 className="text-xl font-semibold text-foreground">{currentLavoratore.processo || 'Processo'}</h1>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Profilo {currentIndex + 1} di {lavoratori.length} • {selectedRecruiter}
+                  </p>
+                </div>
               </div>
               <div className="flex gap-2 items-center">
                 <Button onClick={handleRefreshFromAirtable} disabled={isSyncing} variant="outline" size="sm" className="gap-2 text-muted-foreground border-input hover:bg-muted">

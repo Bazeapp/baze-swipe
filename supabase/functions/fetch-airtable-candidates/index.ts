@@ -80,7 +80,26 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${records.length} total records in Airtable`)
 
-    // Fetch processo_res table to get recruiters
+    // Fetch operatori table to get recruiters
+    const operatoriUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/operatori`
+    console.log('Fetching operatori table from Airtable')
+    
+    const operatoriResponse = await fetch(operatoriUrl, {
+      headers: {
+        'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
+      }
+    })
+
+    if (!operatoriResponse.ok) {
+      console.error('Airtable operatori API error:', operatoriResponse.status)
+      throw new Error(`Airtable operatori API error: ${operatoriResponse.statusText}`)
+    }
+
+    const operatoriData = await operatoriResponse.json()
+    const operatoriRecords: AirtableRecord[] = operatoriData.records || []
+    console.log(`Found ${operatoriRecords.length} operatori records`)
+
+    // Fetch processo_res table
     const processoResUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/processo_res`
     console.log('Fetching processo_res table from Airtable')
     
@@ -97,22 +116,44 @@ Deno.serve(async (req) => {
 
     const processoResData = await processoResResponse.json()
     const processoResRecords: AirtableRecord[] = processoResData.records || []
-    
     console.log(`Found ${processoResRecords.length} processo_res records`)
 
-    // Extract unique recruiters from processo_res
-    const recruitersSet = new Set<string>()
-    for (const processoRecord of processoResRecords) {
-      const recruiterField = processoRecord.fields.recruiter_ricerca_e_selezione
-      if (recruiterField) {
-        const recruiter = Array.isArray(recruiterField) ? recruiterField[0] : recruiterField
-        if (recruiter) {
-          recruitersSet.add(recruiter)
-        }
+    // Filter processo_res by stato_res = "raccolta candidature"
+    const activeProcesses = processoResRecords.filter(p => {
+      const stato = Array.isArray(p.fields.stato_res) ? p.fields.stato_res[0] : p.fields.stato_res
+      return stato === 'raccolta candidature'
+    })
+    console.log(`Found ${activeProcesses.length} processes with stato_res = "raccolta candidature"`)
+
+    // Extract recruiters from active processes
+    const recruitersInActiveProcesses = new Set<string>()
+    const processoInfoMap = new Map<string, { tipo_lavoro: string, recruiter: string }>()
+    
+    for (const processo of activeProcesses) {
+      const recruiterField = processo.fields.recruiter_ricerca_e_selezione
+      const recruiter = Array.isArray(recruiterField) ? recruiterField[0] : recruiterField
+      const processoId = processo.id
+      const tipoLavoro = Array.isArray(processo.fields.tipo_lavoro) ? processo.fields.tipo_lavoro[0] : processo.fields.tipo_lavoro
+      
+      if (recruiter) {
+        recruitersInActiveProcesses.add(recruiter)
+      }
+      
+      if (tipoLavoro) {
+        processoInfoMap.set(processoId, { tipo_lavoro: tipoLavoro, recruiter: recruiter || '' })
       }
     }
-    const recruiters = Array.from(recruitersSet).sort()
-    console.log(`Found ${recruiters.length} unique recruiters:`, recruiters)
+
+    // Get recruiter names from operatori table that have active processes
+    const recruiters = operatoriRecords
+      .map(op => {
+        const nome = Array.isArray(op.fields.nome) ? op.fields.nome[0] : op.fields.nome
+        return nome
+      })
+      .filter(nome => nome && recruitersInActiveProcesses.has(nome))
+      .sort()
+    
+    console.log(`Found ${recruiters.length} unique recruiters with active processes:`, recruiters)
 
     // Group by processo_res to get unique processes
     const processoMap = new Map<string, AirtableRecord>()
@@ -309,10 +350,14 @@ Deno.serve(async (req) => {
       lavoratori.push(lavoratore)
     }
 
-    console.log(`Returning ${lavoratori.length} lavoratori and ${recruiters.length} recruiters`)
+    console.log(`Returning ${lavoratori.length} lavoratori, ${recruiters.length} recruiters, and ${processoInfoMap.size} processo info`)
 
     return new Response(
-      JSON.stringify({ lavoratori, recruiters }),
+      JSON.stringify({ 
+        lavoratori, 
+        recruiters,
+        processoInfo: Object.fromEntries(processoInfoMap)
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }

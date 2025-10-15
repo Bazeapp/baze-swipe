@@ -59,6 +59,7 @@ const Recruiting = () => {
   const [recruiters, setRecruiters] = useState<string[]>([]);
   const [selectedRecruiter, setSelectedRecruiter] = useState<string>("");
   const [processiRes, setProcessiRes] = useState<string[]>([]);
+  const [processoInfo, setProcessoInfo] = useState<Record<string, { tipo_lavoro: string, recruiter: string }>>({});
   const [selectedProcesso, setSelectedProcesso] = useState<string>("all");
   const [showSourceData, setShowSourceData] = useState(false);
   const [showFeedbackEdit, setShowFeedbackEdit] = useState(false);
@@ -200,7 +201,12 @@ const Recruiting = () => {
         }
       }
 
-      // Get unique processo_res values with their email labels
+      // Store processo info
+      if (data?.processoInfo) {
+        setProcessoInfo(data.processoInfo);
+      }
+
+      // Get unique processo_res values
       const processiMap = new Map<string, string>();
       (data?.lavoratori || []).forEach((item: any) => {
         if (item.processo_res && !processiMap.has(item.processo_res)) {
@@ -461,10 +467,9 @@ const Recruiting = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {processiRes.map(processo => {
-                      const lavoratore = lavoratori.find(l => l.processo_res === processo);
-                      const label = lavoratore?.processo_res || processo;
+                      const tipoLavoro = processoInfo[processo]?.tipo_lavoro || processo;
                       return <SelectItem key={processo} value={processo}>
-                            {label}
+                            {tipoLavoro}
                           </SelectItem>;
                     })}
                     </SelectContent>

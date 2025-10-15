@@ -56,6 +56,8 @@ const Recruiting = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [recruiters, setRecruiters] = useState<string[]>([]);
+  const [selectedRecruiter, setSelectedRecruiter] = useState<string>("");
   const [processiRes, setProcessiRes] = useState<string[]>([]);
   const [selectedProcesso, setSelectedProcesso] = useState<string>("all");
   const [showSourceData, setShowSourceData] = useState(false);
@@ -161,6 +163,10 @@ const Recruiting = () => {
   useEffect(() => {
     loadLavoratori();
   }, [selectedProcesso]);
+
+  useEffect(() => {
+    loadProcessiRes();
+  }, [selectedRecruiter]);
   const checkAuth = async () => {
     const {
       data: {
@@ -176,9 +182,23 @@ const Recruiting = () => {
   const loadProcessiRes = async () => {
     try {
       // Fetch directly from Airtable to get processo list
-      const { data, error } = await supabase.functions.invoke('fetch-airtable-candidates');
+      const url = selectedRecruiter 
+        ? `fetch-airtable-candidates?recruiter=${encodeURIComponent(selectedRecruiter)}`
+        : 'fetch-airtable-candidates';
+      
+      const { data, error } = await supabase.functions.invoke(url);
 
       if (error) throw error;
+
+      // Set recruiters list (only on first load)
+      if (data?.recruiters && recruiters.length === 0) {
+        setRecruiters(data.recruiters);
+        // Auto-select first recruiter if available
+        if (data.recruiters.length > 0 && !selectedRecruiter) {
+          setSelectedRecruiter(data.recruiters[0]);
+          return; // Will trigger useEffect to reload
+        }
+      }
 
       // Get unique processo_res values with their email labels
       const processiMap = new Map<string, string>();
@@ -202,9 +222,17 @@ const Recruiting = () => {
     setLoading(true);
     setCurrentIndex(0);
     try {
-      // Fetch directly from Airtable via edge function with query parameter
-      const url = selectedProcesso && selectedProcesso !== 'all' 
-        ? `fetch-airtable-candidates?processo_res=${encodeURIComponent(selectedProcesso)}`
+      // Build URL with query parameters
+      const params = new URLSearchParams();
+      if (selectedRecruiter) {
+        params.append('recruiter', selectedRecruiter);
+      }
+      if (selectedProcesso && selectedProcesso !== 'all') {
+        params.append('processo_res', selectedProcesso);
+      }
+      
+      const url = params.toString() 
+        ? `fetch-airtable-candidates?${params.toString()}`
         : 'fetch-airtable-candidates';
       
       const { data, error } = await supabase.functions.invoke(url);
@@ -362,36 +390,60 @@ const Recruiting = () => {
         </Card>
       </div>;
   }
-  return <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img src={bazeLogo} alt="Baze" className="h-8" />
-              <div className="h-6 w-px bg-border" />
-              <div>
-                <h1 className="text-xl font-semibold text-foreground">{currentLavoratore.processo || 'Processo'}</h1>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Profilo {currentIndex + 1} di {lavoratori.length}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2 items-center">
-              <Button onClick={handleRefreshFromAirtable} disabled={isSyncing} variant="outline" size="sm" className="gap-2 text-muted-foreground border-input hover:bg-muted">
-                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                {isSyncing ? 'Loading...' : 'Refresh'}
-              </Button>
-              <Button onClick={handleLogout} variant="ghost" size="sm" className="text-muted-foreground">
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
+  return <div className="min-h-screen bg-background flex">
+      {/* Sidebar with Recruiters */}
+      <div className="w-64 bg-card border-r border-border flex flex-col">
+        <div className="p-4 border-b border-border">
+          <img src={bazeLogo} alt="Baze" className="h-8 mb-4" />
+          <h2 className="text-sm font-semibold text-muted-foreground">RECRUITER</h2>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {recruiters.map((recruiter) => (
+            <button
+              key={recruiter}
+              onClick={() => {
+                setSelectedRecruiter(recruiter);
+                setSelectedProcesso("all");
+              }}
+              className={`w-full px-4 py-3 text-left text-sm transition-colors ${
+                selectedRecruiter === recruiter
+                  ? 'bg-primary/10 text-primary font-medium border-l-2 border-primary'
+                  : 'text-foreground hover:bg-muted'
+              }`}
+            >
+              {recruiter}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 pb-32">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-card border-b border-border">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-semibold text-foreground">{currentLavoratore.processo || 'Processo'}</h1>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Profilo {currentIndex + 1} di {lavoratori.length} • {selectedRecruiter}
+                </p>
+              </div>
+              <div className="flex gap-2 items-center">
+                <Button onClick={handleRefreshFromAirtable} disabled={isSyncing} variant="outline" size="sm" className="gap-2 text-muted-foreground border-input hover:bg-muted">
+                  <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                  {isSyncing ? 'Loading...' : 'Refresh'}
+                </Button>
+                <Button onClick={handleLogout} variant="ghost" size="sm" className="text-muted-foreground">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-6 pb-32">
 
         {/* Main Layout - 3 columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -705,9 +757,10 @@ const Recruiting = () => {
           </Card>
         </div>
       </div>
+      </div>
 
       {/* Fixed Bottom Bar for Pass/No Pass */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-lg z-50">
+      <div className="fixed bottom-0 left-64 right-0 bg-background border-t border-border shadow-lg z-50">
         <div className="max-w-7xl mx-auto px-6 py-4">
           {showRejectionInput ? (
             <div className="flex gap-3 items-end max-w-2xl mx-auto">
@@ -760,7 +813,7 @@ const Recruiting = () => {
               </Button>
             </div>
           )}
-        </div>
+         </div>
       </div>
 
       {/* Source Data Drawer */}
@@ -823,6 +876,6 @@ const Recruiting = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>;
+    </div>
 };
 export default Recruiting;

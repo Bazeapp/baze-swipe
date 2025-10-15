@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
     // Get query parameters
     const url = new URL(req.url)
     const processoRes = url.searchParams.get('processo_res')
+    const recruiterFilter = url.searchParams.get('recruiter')
 
     const AIRTABLE_API_KEY = Deno.env.get('AIRTABLE_API_KEY')
     const AIRTABLE_BASE_ID = Deno.env.get('AIRTABLE_BASE_ID')
@@ -79,9 +80,32 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${records.length} total records in Airtable`)
 
+    // Extract unique recruiters from processo_res
+    const recruitersSet = new Set<string>()
+    for (const record of records) {
+      const recruiterField = record.fields.recruiter_ricerca_e_selezione
+      if (recruiterField) {
+        const recruiter = Array.isArray(recruiterField) ? recruiterField[0] : recruiterField
+        if (recruiter) {
+          recruitersSet.add(recruiter)
+        }
+      }
+    }
+    const recruiters = Array.from(recruitersSet).sort()
+    console.log(`Found ${recruiters.length} unique recruiters:`, recruiters)
+
     // Group by processo_res to get unique processes
     const processoMap = new Map<string, AirtableRecord>()
     for (const record of records) {
+      // Filter by recruiter if specified
+      if (recruiterFilter) {
+        const recruiterField = record.fields.recruiter_ricerca_e_selezione
+        const recruiter = Array.isArray(recruiterField) ? recruiterField[0] : recruiterField
+        if (recruiter !== recruiterFilter) {
+          continue
+        }
+      }
+
       // Normalize processo_res - extract first element if array
       const processoRaw = record.fields.processo_res
       const processo = Array.isArray(processoRaw) ? processoRaw[0] : processoRaw
@@ -90,7 +114,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Found ${processoMap.size} unique processo_res values`)
+    console.log(`Found ${processoMap.size} unique processo_res values (after recruiter filter)`)
 
     // Fetch esperienze_lavoratore table
     const esperienzeUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/esperienze_lavoratore`
@@ -265,10 +289,10 @@ Deno.serve(async (req) => {
       lavoratori.push(lavoratore)
     }
 
-    console.log(`Returning ${lavoratori.length} lavoratori`)
+    console.log(`Returning ${lavoratori.length} lavoratori and ${recruiters.length} recruiters`)
 
     return new Response(
-      JSON.stringify({ lavoratori }),
+      JSON.stringify({ lavoratori, recruiters }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }

@@ -32,10 +32,31 @@ interface Highlight {
   endOffset: number;
 }
 
-const cleanText = (text: string | null) => {
+const cleanText = (text: any) => {
   if (!text) return "Non disponibile";
   
-  let cleaned = text;
+  // Convert to string if it's not already
+  let cleaned: string;
+  if (typeof text !== "string") {
+    if (Array.isArray(text)) {
+      // If it's an array, join the elements
+      cleaned = text.join("\n\n");
+    } else if (typeof text === "object") {
+      // If it's an object, try to stringify it
+      try {
+        cleaned = JSON.stringify(text);
+      } catch {
+        return "Non disponibile";
+      }
+    } else {
+      // Convert other types to string
+      cleaned = String(text);
+    }
+  } else {
+    cleaned = text;
+  }
+  
+  // Now clean the string
   cleaned = cleaned.replace(/^\[|\]$/g, "");
   cleaned = cleaned.replace(/^["']|["']$/g, "");
   cleaned = cleaned.replace(/",\s*"/g, "\n\n");

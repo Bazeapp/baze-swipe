@@ -140,9 +140,7 @@ Deno.serve(async (req) => {
     const lavoratori = []
     
     console.log('========================================')
-    console.log('🚀 Starting to convert records to lavoratori format')
-    console.log('processoMap size:', processoMap.size)
-    console.log('processo_res filter:', processoRes)
+    console.log('🚀 Starting to convert records')
     console.log('========================================')
     
     for (const [processo, record] of processoMap) {
@@ -158,17 +156,18 @@ Deno.serve(async (req) => {
 
       const fields = record.fields
       
-      console.log('========== RECORD PRINCIPALE ==========')
-      console.log('Record ID (Airtable):', record.id)
-      console.log('Tutti i campi disponibili:', JSON.stringify(Object.keys(fields)))
-      
-      // Log dei possibili campi ID
-      console.log('Possibili campi ID:')
-      console.log('  lavoratore:', fields.lavoratore)
-      console.log('  lavoratore_id:', fields.lavoratore_id)
-      console.log('  lavoratori_id:', fields.lavoratori_id)
-      console.log('  id_lavoratore:', fields.id_lavoratore)
-      console.log('  record_id:', fields.record_id)
+      // DUMP ALL FIELDS RAW
+      console.log('\n========== NUOVO RECORD ==========')
+      console.log('Airtable Record ID:', record.id)
+      console.log('Processo:', processo)
+      console.log('\n📋 TUTTI I CAMPI (raw JSON):')
+      console.log(JSON.stringify(fields, null, 2))
+      console.log('\n🔑 Campi chiave per matching:')
+      console.log('  - lavoratore:', fields.lavoratore)
+      console.log('  - lavoratore_id:', fields.lavoratore_id) 
+      console.log('  - lavoratori_id:', fields.lavoratori_id)
+      console.log('  - id_lavoratore:', fields.id_lavoratore)
+      console.log('========================================\n')
 
       // Get nome from reference field
       let nome = 'Nome non specificato'

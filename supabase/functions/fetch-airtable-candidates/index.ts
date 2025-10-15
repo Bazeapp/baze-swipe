@@ -150,12 +150,6 @@ Deno.serve(async (req) => {
       }
 
       const fields = record.fields
-      
-      // Debug: Log ALL available fields in the main record
-      console.log('=== MAIN WORKER RECORD ===')
-      console.log('record.id:', record.id)
-      console.log('All fields available:', JSON.stringify(Object.keys(fields)))
-      console.log('Looking for lavoratori_id field...')
 
       // Get nome from reference field
       let nome = 'Nome non specificato'
@@ -177,8 +171,24 @@ Deno.serve(async (req) => {
       }
 
       // Get lavoratore_id for matching with esperienze
+      console.log('🔍 Searching for lavoratore_id in fields...')
+      console.log('Available fields:', Object.keys(fields))
+      console.log('lavoratore_id value:', fields.lavoratore_id)
+      
       const lavoratoreId = Array.isArray(fields.lavoratore_id) ? fields.lavoratore_id[0] : fields.lavoratore_id
+      
+      console.log('📋 Normalized lavoratore_id:', lavoratoreId)
+      console.log('🗺️ esperienzeMap size:', esperienzeMap.size)
+      console.log('🔑 esperienzeMap keys sample:', Array.from(esperienzeMap.keys()).slice(0, 10))
+      console.log('🔍 Looking for key:', lavoratoreId)
+      console.log('✅ Key exists in map?', esperienzeMap.has(lavoratoreId))
+      
       const mansioniList = lavoratoreId ? esperienzeMap.get(lavoratoreId) || [] : []
+      
+      console.log('📦 Mansioni found:', mansioniList.length, 'items')
+      if (mansioniList.length > 0) {
+        console.log('📄 First mansioni:', mansioniList[0])
+      }
 
       const lavoratore = {
         id: record.id,

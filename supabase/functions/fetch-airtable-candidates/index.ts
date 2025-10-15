@@ -125,33 +125,41 @@ Deno.serve(async (req) => {
     })
     console.log(`Found ${activeProcesses.length} processes with stato_res = "raccolta candidature"`)
 
+    // Create a map of operatori record ID to nome
+    const operatoriIdToNome = new Map<string, string>()
+    for (const op of operatoriRecords) {
+      const nome = Array.isArray(op.fields.nome) ? op.fields.nome[0] : op.fields.nome
+      if (nome) {
+        operatoriIdToNome.set(op.id, nome)
+      }
+    }
+    console.log('Operatori ID to Nome map:', Object.fromEntries(operatoriIdToNome))
+
     // Extract recruiters from active processes
     const recruitersInActiveProcesses = new Set<string>()
     const processoInfoMap = new Map<string, { tipo_lavoro: string, recruiter: string }>()
     
     for (const processo of activeProcesses) {
       const recruiterField = processo.fields.recruiter_ricerca_e_selezione
-      const recruiter = Array.isArray(recruiterField) ? recruiterField[0] : recruiterField
+      const recruiterId = Array.isArray(recruiterField) ? recruiterField[0] : recruiterField
       const processoId = processo.id
       const tipoLavoro = Array.isArray(processo.fields.tipo_lavoro) ? processo.fields.tipo_lavoro[0] : processo.fields.tipo_lavoro
       
-      if (recruiter) {
-        recruitersInActiveProcesses.add(recruiter)
-      }
-      
-      if (tipoLavoro) {
-        processoInfoMap.set(processoId, { tipo_lavoro: tipoLavoro, recruiter: recruiter || '' })
+      if (recruiterId) {
+        // Get the nome from the map
+        const recruiterNome = operatoriIdToNome.get(recruiterId)
+        if (recruiterNome) {
+          recruitersInActiveProcesses.add(recruiterNome)
+          
+          if (tipoLavoro) {
+            processoInfoMap.set(processoId, { tipo_lavoro: tipoLavoro, recruiter: recruiterNome })
+          }
+        }
       }
     }
 
-    // Get recruiter names from operatori table that have active processes
-    const recruiters = operatoriRecords
-      .map(op => {
-        const nome = Array.isArray(op.fields.nome) ? op.fields.nome[0] : op.fields.nome
-        return nome
-      })
-      .filter(nome => nome && recruitersInActiveProcesses.has(nome))
-      .sort()
+    // Get unique recruiter names
+    const recruiters = Array.from(recruitersInActiveProcesses).sort()
     
     console.log(`Found ${recruiters.length} unique recruiters with active processes:`, recruiters)
 

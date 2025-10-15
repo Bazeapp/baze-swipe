@@ -176,29 +176,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Get lavoratori_id for matching with esperienze
-      // Try multiple possible field names
-      const possibleIdFields = ['lavoratori_id', 'lavoratore', 'id_lavoratore', 'record_id']
-      let lavoratoriId = null
-      
-      for (const fieldName of possibleIdFields) {
-        if (fields[fieldName]) {
-          const rawValue = fields[fieldName]
-          lavoratoriId = Array.isArray(rawValue) ? rawValue[0] : rawValue
-          console.log(`Found ID in field '${fieldName}':`, lavoratoriId)
-          break
-        }
-      }
-      
-      if (!lavoratoriId) {
-        console.log('❌ No lavoratori_id found in any field!')
-        console.log('Available fields:', Object.keys(fields))
-      }
-      
-      console.log('Looking up in esperienzeMap for:', lavoratoriId)
-      console.log('esperienzeMap keys:', Array.from(esperienzeMap.keys()).slice(0, 10))
-      const mansioniList = lavoratoriId ? esperienzeMap.get(lavoratoriId) || [] : []
-      console.log('✅ mansioni list for this lavoratore:', mansioniList.length, mansioniList)
+      // Get lavoratore_id for matching with esperienze
+      const lavoratoreId = Array.isArray(fields.lavoratore_id) ? fields.lavoratore_id[0] : fields.lavoratore_id
+      const mansioniList = lavoratoreId ? esperienzeMap.get(lavoratoreId) || [] : []
 
       const lavoratore = {
         id: record.id,

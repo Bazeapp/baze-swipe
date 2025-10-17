@@ -4,8 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   fetchCandidates,
   fetchRecruiterProcesses,
+  fetchWorkerSelections,
   type RecruiterProcessSummary,
   type ProcessoInfo,
+  type WorkerSelection,
 } from "@/services/airtable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +33,8 @@ import {
   Clock,
   Calendar,
   Menu,
+  List,
+  Loader2,
 } from "lucide-react";
 import {
   Accordion,
@@ -49,7 +53,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import bazeLogo from "@/assets/baze-swipe.png";
 interface Lavoratore {
   id: string;
@@ -87,6 +98,8 @@ interface Lavoratore {
   feedback_recruiter: string | null;
   indirizzo_lavoratore: string | null;
   indirizzo_famiglia: string | null;
+  lavoratore_record_id: string | null;
+  lavoratore_record_field: string | null;
 }
 const Recruiting = () => {
   const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);
@@ -112,6 +125,11 @@ const Recruiting = () => {
   >(null);
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [workerSelectionsOpen, setWorkerSelectionsOpen] = useState(false);
+  const [workerSelections, setWorkerSelections] = useState<WorkerSelection[]>(
+    []
+  );
+  const [workerSelectionsLoading, setWorkerSelectionsLoading] = useState(false);
   const navigate = useNavigate();
   const selectedRecruiterIdRef = useRef<string>("");
   const selectedProcessoRef = useRef<string>("");
@@ -225,6 +243,157 @@ const Recruiting = () => {
     if (value === null || value === undefined) return null;
     return `${value} ${value === 1 ? "anno" : "anni"}`;
   };
+
+  const statusColorLookup: Record<
+    string,
+    "blu" | "giallo" | "verde" | "rosso" | "grigio" | "default"
+  > = {
+    prospetto: "blu",
+    "candidato - poor fit": "blu",
+    "candidato - good fit": "blu",
+    "da colloquiare": "blu",
+    "fare ricerca": "blu",
+    "da assegnare": "giallo",
+    "non risponde": "giallo",
+    "invitato a colloquio": "giallo",
+    selezionato: "giallo",
+    "selezione inviata, in attesa di feedback": "giallo",
+    "inviato al cliente": "verde",
+    "colloquio schedulato": "verde",
+    "colloquio fatto": "verde",
+    "prova con cliente": "verde",
+    "in prova con lavoratore": "verde",
+    "fase di colloqui": "verde",
+    match: "verde",
+    "no match": "rosso",
+    archivio: "grigio",
+    "non selezionato": "grigio",
+    "nascosto - oot": "grigio",
+  };
+
+  const statusColorClasses: Record<
+    "blu" | "giallo" | "verde" | "rosso" | "grigio" | "default",
+    { text: string; badge: string }
+  > = {
+    blu: { text: "text-blue-700", badge: "bg-blue-100 text-blue-800" },
+    giallo: { text: "text-amber-700", badge: "bg-amber-100 text-amber-800" },
+    verde: { text: "text-green-700", badge: "bg-green-100 text-green-800" },
+    rosso: { text: "text-red-700", badge: "bg-red-100 text-red-800" },
+    grigio: {
+      text: "text-muted-foreground",
+      badge: "bg-muted text-muted-foreground",
+    },
+    default: {
+      text: "text-muted-foreground",
+      badge: "bg-muted text-muted-foreground",
+    },
+  };
+
+  const getStatusColorKey = useCallback((statusLabel: string) => {
+    const normalized = statusLabel.trim().toLowerCase();
+    if (statusColorLookup[normalized]) {
+      return statusColorLookup[normalized];
+    }
+    if (normalized.includes("colloqui")) {
+      return "verde";
+    }
+    if (normalized.includes("prova")) {
+      return "verde";
+    }
+    if (normalized.includes("ricerca")) {
+      return "blu";
+    }
+    if (normalized.includes("assegnare")) {
+      return "giallo";
+    }
+    if (normalized.includes("feedback")) {
+      return "giallo";
+    }
+    return "default";
+  }, []);
+
+  const groupedWorkerSelections = useMemo(() => {
+    const groups = new Map<string, WorkerSelection[]>();
+    workerSelections.forEach((selection) => {
+      const statusKey = selection.statoProcesso?.trim() || "Senza stato";
+      if (!groups.has(statusKey)) {
+        groups.set(statusKey, []);
+      }
+      groups.get(statusKey)!.push(selection);
+    });
+    return Array.from(groups.entries());
+  }, [workerSelections]);
+
+  const getSelectionTitle = useCallback(
+    (selection: WorkerSelection) => {
+      if (
+        selection.processoTitle &&
+        selection.processoTitle.trim().length > 0
+      ) {
+        return selection.processoTitle.trim();
+      }
+
+      if (selection.processoId) {
+        const info = processoInfo[selection.processoId];
+        if (info) {
+          const parts = [
+            info.tipo_lavoro,
+            info.tipo_rapporto,
+            info.email_famiglia,
+          ]
+            .map((part) => part?.trim())
+            .filter(Boolean);
+          if (parts.length > 0) {
+            return parts.join(" · ");
+          }
+        }
+        return selection.processoId;
+      }
+
+      return "Processo senza nome";
+    },
+    [processoInfo]
+  );
+
+  const handleOpenWorkerSelections = useCallback(async () => {
+    const current = lavoratori[currentIndex];
+    if (!current?.lavoratore_record_id) {
+      toast({
+        title: "ID mancante",
+        description:
+          "Impossibile trovare le altre selezioni per questo profilo",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setWorkerSelectionsOpen(true);
+    setWorkerSelectionsLoading(true);
+    setWorkerSelections([]);
+
+    try {
+      const selections = await fetchWorkerSelections(
+        current.lavoratore_record_id,
+        current.lavoratore_record_field
+      );
+      const filteredSelections = selections.filter(
+        (selection) => selection.id !== current.id
+      );
+      setWorkerSelections(filteredSelections);
+    } catch (error) {
+      console.error("Errore caricamento selezioni lavoratore:", error);
+      toast({
+        title: "Errore",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Impossibile caricare le altre selezioni",
+        variant: "destructive",
+      });
+    } finally {
+      setWorkerSelectionsLoading(false);
+    }
+  }, [currentIndex, lavoratori, toast]);
   const checkAuth = useCallback(async () => {
     const {
       data: { session },
@@ -432,6 +601,9 @@ const Recruiting = () => {
     setDecisionDialogOpen(false);
     setPendingDecision(null);
 
+    setWorkerSelectionsOpen(false);
+    setWorkerSelections([]);
+
     const updatedLavoratori = lavoratori.filter(
       (_, index) => index !== currentIndex
     );
@@ -536,22 +708,6 @@ const Recruiting = () => {
             <p className="text-muted-foreground">
               Hai revisionato tutti i profili. Ottimo lavoro!
             </p>
-            <div className="flex flex-col gap-2 w-full">
-              <Button
-                onClick={handleRefreshFromAirtable}
-                disabled={isSyncing}
-                className="gap-2"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
-                />
-                {isSyncing ? "Caricamento..." : "Ricarica da Airtable"}
-              </Button>
-              <Button onClick={handleLogout} variant="outline">
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -763,13 +919,30 @@ const Recruiting = () => {
                           <span>{currentLavoratore.eta} anni</span>
                         )}
                       </div>
+                      {currentLavoratore.lavoratore_record_id && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          ID: {currentLavoratore.lavoratore_record_id}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  {currentLavoratore.stato_selezione && (
-                    <div className="px-3 py-1.5 bg-accent text-accent-foreground rounded-md text-xs font-medium whitespace-nowrap">
-                      {currentLavoratore.stato_selezione}
-                    </div>
-                  )}
+                  <div className="flex flex-col gap-2 items-end">
+                    {currentLavoratore.stato_selezione && (
+                      <div className="px-3 py-1.5 bg-accent text-accent-foreground rounded-md text-xs font-medium whitespace-nowrap">
+                        {currentLavoratore.stato_selezione}
+                      </div>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 text-xs"
+                      onClick={handleOpenWorkerSelections}
+                    >
+                      <List className="w-3 h-3" />
+                      Altre selezioni
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Info boxes - Distanza, Esperienza, Disponibilità */}
@@ -841,7 +1014,7 @@ const Recruiting = () => {
                   {currentLavoratore.anni_esperienza_colf !== null && (
                     <div
                       className={`rounded-lg p-3 border ${
-                        currentLavoratore.anni_esperienza_colf > 5
+                        currentLavoratore.anni_esperienza_colf > 8
                           ? "bg-green-50 border-green-200"
                           : currentLavoratore.anni_esperienza_colf >= 3
                           ? "bg-yellow-50 border-yellow-200"
@@ -851,7 +1024,7 @@ const Recruiting = () => {
                       <div className="flex items-center gap-2 mb-1">
                         <Clock
                           className={`w-4 h-4 ${
-                            currentLavoratore.anni_esperienza_colf > 5
+                            currentLavoratore.anni_esperienza_colf > 8
                               ? "text-green-600"
                               : currentLavoratore.anni_esperienza_colf >= 3
                               ? "text-yellow-600"
@@ -865,7 +1038,7 @@ const Recruiting = () => {
                       <div className="flex items-start justify-between gap-4">
                         <p
                           className={`text-sm font-medium ${
-                            currentLavoratore.anni_esperienza_colf > 5
+                            currentLavoratore.anni_esperienza_colf > 8
                               ? "text-green-700"
                               : currentLavoratore.anni_esperienza_colf >= 3
                               ? "text-yellow-700"
@@ -1186,6 +1359,72 @@ const Recruiting = () => {
         onOpenChange={setShowSourceData}
         lavoratore={currentLavoratore}
       />
+
+      <Sheet open={workerSelectionsOpen} onOpenChange={setWorkerSelectionsOpen}>
+        <SheetContent side="right" className="w-full sm:w-[420px]">
+          <SheetHeader>
+            <SheetTitle>Altre selezioni</SheetTitle>
+            <SheetDescription>
+              Processi in cui questo profilo è stato coinvolto
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 space-y-3">
+            {workerSelectionsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Caricamento selezioni...
+              </div>
+            ) : groupedWorkerSelections.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nessuna altra selezione trovata per questo profilo.
+              </p>
+            ) : (
+              <Accordion type="multiple" className="space-y-3">
+                {groupedWorkerSelections.map(([statusLabel, selections]) => {
+                  const colorKey = getStatusColorKey(statusLabel);
+                  const colorClasses = statusColorClasses[colorKey];
+                  return (
+                    <AccordionItem
+                      key={statusLabel || "Senza stato"}
+                      value={statusLabel || "Senza stato"}
+                      className="border border-border rounded-lg"
+                    >
+                      <AccordionTrigger className="px-3 py-2 text-sm font-semibold">
+                        <div className="flex items-center gap-2">
+                          <span className={colorClasses.text}>
+                            {statusLabel}
+                          </span>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full ${colorClasses.badge}`}
+                          >
+                            {selections.length}
+                          </span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-3 pb-3 space-y-2">
+                        {selections.map((selection) => (
+                          <div
+                            key={selection.id}
+                            className="border border-border/70 rounded-md p-3 bg-card/50"
+                          >
+                            <p className="text-sm font-medium text-foreground">
+                              {getSelectionTitle(selection)}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Stato:{" "}
+                              {selection.statoProcesso || "Non disponibile"}
+                            </p>
+                          </div>
+                        ))}
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Decision Dialog with Fact-Check */}
       <DecisionDialog

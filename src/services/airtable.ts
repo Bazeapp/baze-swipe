@@ -47,6 +47,8 @@ export interface Lavoratore {
   feedback_recruiter: string | null;
   indirizzo_lavoratore: string | null;
   indirizzo_famiglia: string | null;
+  lavoratore_record_id: string | null;
+  lavoratore_record_field: string | null;
 }
 
 function buildQueryString(params?: Record<string, string | undefined>): string {
@@ -179,6 +181,14 @@ export interface ProcessoInfo {
   record_id_processo_value: string;
 }
 
+export interface WorkerSelection {
+  id: string;
+  processoId: string | null;
+  processoTitle: string | null;
+  statoProcesso: string | null;
+  recruiterId: string | null;
+}
+
 export async function fetchRecruiterProcesses(): Promise<{
   recruiters: RecruiterProcessSummary[];
   processoInfo: Record<string, ProcessoInfo>;
@@ -194,7 +204,14 @@ export async function fetchRecruiterProcesses(): Promise<{
     }
   }
 
-  const processoResRecords = await fetchAirtableView('processo_res', '[🔐 No Edit] baze_swipe');
+  const processoResRecords = await fetchAirtableView(
+    'processo_res',
+    '[🔐 No Edit] baze_swipe',
+    {
+      filterByFormula:
+        "OR({stato_res}='fare ricerca',FIND('fare ricerca', ARRAYJOIN({stato_res}, ','))>0)",
+    }
+  );
 
   const recruiterProcessMap = new Map<string, RecruiterProcessSummary>();
   const processoInfoMap = new Map<string, ProcessoInfo>();
@@ -290,7 +307,9 @@ export async function fetchCandidates(
     );
   }
 
-  lavoratoriFormulaParts.push(`{stato_selezione}='Prospetto'`);
+  lavoratoriFormulaParts.push(
+    "OR({stato_selezione}='Candidato - Good fit',{stato_selezione}='Prospetto',{stato_selezione}='Candidato - Poor fit')"
+  );
 
   const lavoratoriQuery: Record<string, string | undefined> = {
     pageSize: '20',
@@ -405,10 +424,12 @@ export async function fetchCandidates(
     }
 
     let lavoratoreId = null;
+    let lavoratoreIdFieldUsed: string | null = null;
     for (const fieldName of POSSIBLE_LAVORATORE_ID_FIELDS) {
       if (fields[fieldName]) {
         const rawValue = fields[fieldName];
         lavoratoreId = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+        lavoratoreIdFieldUsed = fieldName;
         break;
       }
     }
@@ -487,6 +508,8 @@ export async function fetchCandidates(
       stato_processo_res: Array.isArray(fields.stato_processo_res)
         ? fields.stato_processo_res[0]
         : fields.stato_processo_res,
+      lavoratore_record_id: lavoratoreId,
+      lavoratore_record_field: lavoratoreIdFieldUsed,
     };
 
     lavoratori.push(lavoratore);
@@ -494,7 +517,19 @@ export async function fetchCandidates(
 
   console.log('✅ Final lavoratori count:', lavoratori.length);
 
+  const selectionPriority: Record<string, number> = {
+    'Candidato - Good fit': 0,
+    Prospetto: 1,
+    'Candidato - Poor fit': 2,
+  };
+
   lavoratori.sort((a, b) => {
+    const priorityA = selectionPriority[a.stato_selezione ?? ''] ?? 99;
+    const priorityB = selectionPriority[b.stato_selezione ?? ''] ?? 99;
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+
     const parseTime = (value: string | null) => {
       if (!value) return Number.POSITIVE_INFINITY;
       if (typeof value !== 'string') {
@@ -510,4 +545,76 @@ export async function fetchCandidates(
   });
 
   return lavoratori;
+}
+
+export async function fetchWorkerSelections(
+  lavoratoreId: string,
+  lavoratoreField?: string | null
+): Promise<WorkerSelection[]> {
+  const escapedId = escapeFormulaValue(lavoratoreId);
+  let filterFormula: string | undefined;
+  if (lavoratoreField) {
+    filterFormula = `FIND('${escapedId}', ARRAYJOIN({${lavoratoreField}}, ','))>0`;
+  }
+
+  let records: AirtableRecord[] = [];
+  try {
+    records = await fetchAirtableView(
+      'lavoratori_selezionati',
+      '[🔒] Lovable Tinder Database',
+      filterFormula ? { filterByFormula: filterFormula } : undefined
+    );
+  } catch (error) {
+    console.warn('Worker selection filter failed, falling back to full fetch:', error);
+    records = await fetchAirtableView('lavoratori_selezionati', '[🔒] Lovable Tinder Database');
+  }
+
+  const normalizedId = lavoratoreId.toLowerCase();
+
+  const filtered = records.filter((record) => {
+    for (const field of POSSIBLE_LAVORATORE_ID_FIELDS) {
+      const raw = record.fields[field];
+      if (!raw) continue;
+      const values = Array.isArray(raw) ? raw : [raw];
+      if (values.some((value) => String(value).toLowerCase() === normalizedId)) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+  return filtered.map((record) => {
+    const fields = record.fields;
+    const processoResRaw = fields.processo_res;
+    const processoRes = Array.isArray(processoResRaw)
+      ? processoResRaw[0]
+      : processoResRaw;
+    const processoTitleRaw = fields.processo_title;
+    let processoTitleValue = Array.isArray(processoTitleRaw)
+      ? processoTitleRaw[0]
+      : processoTitleRaw;
+    if (typeof processoTitleValue === 'string') {
+      const parts = processoTitleValue.split('|').map((part) => part.trim());
+      const filteredParts = parts.filter((part) => part.length > 0);
+      if (filteredParts.length > 1) {
+        processoTitleValue = filteredParts.slice(0, -1).join(' | ');
+      } else if (filteredParts.length === 1) {
+        processoTitleValue = filteredParts[0];
+      }
+    }
+    const statoRaw = fields.stato_processo_res;
+    const stato = Array.isArray(statoRaw) ? statoRaw[0] : statoRaw;
+    const recruiterField = fields.recruiter_processo_res;
+    const recruiterId = Array.isArray(recruiterField)
+      ? recruiterField[0]
+      : recruiterField;
+
+    return {
+      id: record.id,
+      processoId: processoRes ? String(processoRes) : null,
+      processoTitle: processoTitleValue ? String(processoTitleValue) : null,
+      statoProcesso: stato ? String(stato) : null,
+      recruiterId: recruiterId ? String(recruiterId) : null,
+    };
+  });
 }

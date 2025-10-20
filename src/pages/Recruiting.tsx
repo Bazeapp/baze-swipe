@@ -5,6 +5,7 @@ import {
   fetchCandidates,
   fetchRecruiterProcesses,
   fetchWorkerSelections,
+  updateCandidateSelectionStatus,
   type RecruiterProcessSummary,
   type ProcessoInfo,
   type WorkerSelection,
@@ -552,20 +553,6 @@ const Recruiting = () => {
     loadLavoratori(selectedRecruiter, selectedProcesso);
   }, [selectedRecruiter, selectedProcesso, processoInfo, loadLavoratori]);
   const handleDecisionClick = (decision: "pass" | "no_pass") => {
-    if (decision === "no_pass" && !showRejectionInput) {
-      setShowRejectionInput(true);
-      return;
-    }
-
-    if (decision === "no_pass" && !rejectionReason.trim()) {
-      toast({
-        title: "Motivo richiesto",
-        description: "Inserisci un motivo per il rifiuto",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setPendingDecision(decision);
     setDecisionDialogOpen(true);
   };
@@ -575,6 +562,24 @@ const Recruiting = () => {
   ) => {
     const currentLavoratore = lavoratori[currentIndex];
     if (!currentLavoratore || !pendingDecision) return;
+
+    const nextStatus =
+      pendingDecision === "pass" ? "Da colloquiare" : "Non selezionato";
+
+    try {
+      await updateCandidateSelectionStatus(currentLavoratore.id, nextStatus);
+    } catch (error) {
+      console.error("Errore aggiornamento stato selezione:", error);
+      toast({
+        title: "Errore",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Impossibile aggiornare lo stato in Airtable",
+        variant: "destructive",
+      });
+      return;
+    }
 
     console.log("Decision confirmed:", {
       candidate: currentLavoratore.nome,
@@ -1045,6 +1050,8 @@ const Recruiting = () => {
                               : "text-red-700"
                           }`}
                         >
+                          {" "}
+                          Colf
                           {currentLavoratore.anni_esperienza_colf}{" "}
                           {currentLavoratore.anni_esperienza_colf === 1
                             ? "anno"
@@ -1297,59 +1304,23 @@ const Recruiting = () => {
       {/* Fixed Bottom Bar for Pass/No Pass */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-lg z-50">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          {showRejectionInput ? (
-            <div className="flex gap-3 items-end max-w-2xl mx-auto">
-              <div className="flex-1">
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  Motivo No Pass
-                </label>
-                <Textarea
-                  placeholder="Perché questo candidato non è adatto?"
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  className="min-h-[80px] border-input bg-background resize-none"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => handleDecisionClick("no_pass")}
-                  variant="destructive"
-                  className="h-11 font-medium"
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Conferma Rifiuto
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowRejectionInput(false);
-                    setRejectionReason("");
-                  }}
-                  variant="outline"
-                  className="h-11 text-muted-foreground border-input hover:bg-muted"
-                >
-                  Annulla
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex gap-3 justify-center">
-              <Button
-                onClick={() => handleDecisionClick("pass")}
-                className="w-48 h-12 font-medium bg-green-600 hover:bg-green-700 text-white"
-              >
-                <CheckCircle className="w-5 h-5 mr-2" />
-                Pass
-              </Button>
-              <Button
-                onClick={() => handleDecisionClick("no_pass")}
-                variant="destructive"
-                className="w-48 h-12 font-medium"
-              >
-                <XCircle className="w-5 h-5 mr-2" />
-                No Pass
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-3 justify-center">
+            <Button
+              onClick={() => handleDecisionClick("pass")}
+              className="w-48 h-12 font-medium bg-green-600 hover:bg-green-700 text-white"
+            >
+              <CheckCircle className="w-5 h-5 mr-2" />
+              Pass
+            </Button>
+            <Button
+              onClick={() => handleDecisionClick("no_pass")}
+              variant="destructive"
+              className="w-48 h-12 font-medium"
+            >
+              <XCircle className="w-5 h-5 mr-2" />
+              No Pass
+            </Button>
+          </div>
         </div>
       </div>
 

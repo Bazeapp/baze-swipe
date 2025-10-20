@@ -618,3 +618,34 @@ export async function fetchWorkerSelections(
     };
   });
 }
+
+export async function updateCandidateSelectionStatus(
+  recordId: string,
+  newStatus: string
+): Promise<void> {
+  if (!recordId) {
+    throw new Error('Record ID mancante');
+  }
+
+  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/lavoratori_selezionati/${recordId}`;
+
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      fields: {
+        stato_selezione: newStatus,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error('Airtable update error:', response.status, response.statusText);
+    console.error('Error response body:', errorBody);
+    throw new Error('Impossibile aggiornare lo stato su Airtable');
+  }
+}

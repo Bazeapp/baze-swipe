@@ -272,8 +272,10 @@ const Recruiting = () => {
     "nascosto - oot": "grigio",
   };
 
+  type StatusColorKey = "blu" | "giallo" | "verde" | "rosso" | "grigio" | "default";
+
   const statusColorClasses: Record<
-    "blu" | "giallo" | "verde" | "rosso" | "grigio" | "default",
+    StatusColorKey,
     { text: string; badge: string }
   > = {
     blu: { text: "text-blue-700", badge: "bg-blue-100 text-blue-800" },
@@ -290,10 +292,10 @@ const Recruiting = () => {
     },
   };
 
-  const getStatusColorKey = useCallback((statusLabel: string) => {
+  const getStatusColorKey = useCallback((statusLabel: string): StatusColorKey => {
     const normalized = statusLabel.trim().toLowerCase();
     if (statusColorLookup[normalized]) {
-      return statusColorLookup[normalized];
+      return statusColorLookup[normalized] as StatusColorKey;
     }
     if (normalized.includes("colloqui")) {
       return "verde";
@@ -313,17 +315,63 @@ const Recruiting = () => {
     return "default";
   }, []);
 
-  const groupedWorkerSelections = useMemo(() => {
-    const groups = new Map<string, WorkerSelection[]>();
+  const colorPriority: StatusColorKey[] = [
+    "verde",
+    "rosso",
+    "giallo",
+    "blu",
+    "grigio",
+    "default",
+  ];
+
+  const colorLabels: Record<StatusColorKey, string> = {
+    verde: "Match & colloqui",
+    rosso: "No match",
+    giallo: "In corso",
+    blu: "In ricerca",
+    grigio: "Archiviati",
+    default: "Altre selezioni",
+  };
+
+  const colorGroupedWorkerSelections = useMemo(() => {
+    const statusMap = new Map<StatusColorKey, Map<string, WorkerSelection[]>>();
+
     workerSelections.forEach((selection) => {
-      const statusKey = selection.statoProcesso?.trim() || "Senza stato";
-      if (!groups.has(statusKey)) {
-        groups.set(statusKey, []);
+      const statusLabel = selection.statoProcesso?.trim() || "Senza stato";
+      const colorKey = getStatusColorKey(statusLabel);
+
+      if (!statusMap.has(colorKey)) {
+        statusMap.set(colorKey, new Map());
       }
-      groups.get(statusKey)!.push(selection);
+
+      const colorGroup = statusMap.get(colorKey)!;
+      if (!colorGroup.has(statusLabel)) {
+        colorGroup.set(statusLabel, []);
+      }
+      colorGroup.get(statusLabel)!.push(selection);
     });
-    return Array.from(groups.entries());
-  }, [workerSelections]);
+
+    return colorPriority
+      .map((colorKey) => {
+        const mapForColor = statusMap.get(colorKey);
+        if (!mapForColor) return null;
+
+        const entries = Array.from(mapForColor.entries()).sort((a, b) =>
+          a[0].localeCompare(b[0])
+        );
+
+        return {
+          colorKey,
+          label: colorLabels[colorKey],
+          statuses: entries,
+        };
+      })
+      .filter(Boolean) as Array<{
+        colorKey: StatusColorKey;
+        label: string;
+        statuses: Array<[string, WorkerSelection[]]>;
+      }>;
+  }, [workerSelections, getStatusColorKey]);
 
   const getSelectionTitle = useCallback(
     (selection: WorkerSelection) => {
@@ -701,6 +749,10 @@ const Recruiting = () => {
     );
   }
   const currentLavoratore = lavoratori[currentIndex];
+  const currentProcessoInfo = selectedProcesso
+    ? processoInfo[selectedProcesso]
+    : undefined;
+
   if (!currentLavoratore) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
@@ -718,6 +770,20 @@ const Recruiting = () => {
       </div>
     );
   }
+  const combinedFamilyAddress = [
+    currentLavoratore.indirizzo_famiglia?.trim(),
+    currentProcessoInfo?.luogo_indirizzo?.trim(),
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const mapDestination =
+    combinedFamilyAddress || currentLavoratore.indirizzo_famiglia || "";
+  const extraReservedInfo =
+    currentProcessoInfo?.informazioni_extra_riservate?.trim() || "";
+  const animalsPresenceInfo =
+    currentProcessoInfo?.descrizione_animali_in_casa?.trim() || "";
+
   const babysitterYearsFormatted = formatYears(
     currentLavoratore.anni_esperienza_babysitter
   );
@@ -857,7 +923,7 @@ const Recruiting = () => {
 
                   {currentLavoratore.annuncio_luogo_riferimento_pubblico && (
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground">
+                      <label className="text-xs font-semibold text-primary">
                         ZONA
                       </label>
                       <p className="mt-1 text-xs">
@@ -868,7 +934,7 @@ const Recruiting = () => {
 
                   {currentLavoratore.annuncio_orario_di_lavoro && (
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground">
+                      <label className="text-xs font-semibold text-primary">
                         ORARI
                       </label>
                       <p className="mt-1 text-xs">
@@ -879,7 +945,7 @@ const Recruiting = () => {
 
                   {currentLavoratore.annuncio_nucleo_famigliare && (
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground">
+                      <label className="text-xs font-semibold text-primary">
                         FAMIGLIA
                       </label>
                       <p className="mt-1 text-xs">
@@ -888,9 +954,42 @@ const Recruiting = () => {
                     </div>
                   )}
 
+                  {mapDestination && (
+                    <div>
+                      <label className="text-xs font-semibold text-primary">
+                        INDIRIZZO
+                      </label>
+                      <p className="mt-1 text-xs whitespace-pre-line">
+                        {combinedFamilyAddress || mapDestination}
+                      </p>
+                    </div>
+                  )}
+
+                  {extraReservedInfo && (
+                    <div>
+                      <label className="text-xs font-semibold text-primary">
+                        INFO AGGIUNTIVE
+                      </label>
+                      <p className="mt-1 text-xs whitespace-pre-line">
+                        {extraReservedInfo}
+                      </p>
+                    </div>
+                  )}
+
+                  {animalsPresenceInfo && (
+                    <div>
+                      <label className="text-xs font-semibold text-primary">
+                        PRESENZA ANIMALI
+                      </label>
+                      <p className="mt-1 text-xs whitespace-pre-line">
+                        {animalsPresenceInfo}
+                      </p>
+                    </div>
+                  )}
+
                   {currentLavoratore.mansioni_richieste && (
                     <div>
-                      <label className="text-xs font-semibold text-muted-foreground">
+                      <label className="text-xs font-semibold text-primary">
                         MANSIONI
                       </label>
                       <p className="mt-1 whitespace-pre-line text-xs">
@@ -982,12 +1081,12 @@ const Recruiting = () => {
                         </span>
                       </div>
                       {currentLavoratore.indirizzo_lavoratore &&
-                        currentLavoratore.indirizzo_famiglia && (
+                        mapDestination && (
                           <a
                             href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
                               currentLavoratore.indirizzo_lavoratore || ""
                             )}&destination=${encodeURIComponent(
-                              currentLavoratore.indirizzo_famiglia || ""
+                              mapDestination
                             )}&travelmode=transit`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -1051,8 +1150,7 @@ const Recruiting = () => {
                           }`}
                         >
                           {" "}
-                          Colf
-                          {currentLavoratore.anni_esperienza_colf}{" "}
+                          Colf: {currentLavoratore.anni_esperienza_colf}{" "}
                           {currentLavoratore.anni_esperienza_colf === 1
                             ? "anno"
                             : "anni"}
@@ -1345,53 +1443,65 @@ const Recruiting = () => {
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Caricamento selezioni...
               </div>
-            ) : groupedWorkerSelections.length === 0 ? (
+            ) : colorGroupedWorkerSelections.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Nessuna altra selezione trovata per questo profilo.
               </p>
             ) : (
-              <Accordion type="multiple" className="space-y-3">
-                {groupedWorkerSelections.map(([statusLabel, selections]) => {
-                  const colorKey = getStatusColorKey(statusLabel);
+              <div className="space-y-4">
+                {colorGroupedWorkerSelections.map(({ colorKey, label, statuses }) => {
                   const colorClasses = statusColorClasses[colorKey];
                   return (
-                    <AccordionItem
-                      key={statusLabel || "Senza stato"}
-                      value={statusLabel || "Senza stato"}
-                      className="border border-border rounded-lg"
+                    <div
+                      key={colorKey}
+                      className="border border-border rounded-lg overflow-hidden"
                     >
-                      <AccordionTrigger className="px-3 py-2 text-sm font-semibold">
-                        <div className="flex items-center gap-2">
-                          <span className={colorClasses.text}>
-                            {statusLabel}
-                          </span>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${colorClasses.badge}`}
+                      <div
+                        className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide ${colorClasses.text}`}
+                      >
+                        {label}
+                      </div>
+                      <Accordion type="multiple" className="border-t border-border divide-y divide-border">
+                        {statuses.map(([statusLabel, selections]) => (
+                          <AccordionItem
+                            key={`${colorKey}-${statusLabel || "Senza stato"}`}
+                            value={`${colorKey}-${statusLabel || "Senza stato"}`}
+                            className="border-none"
                           >
-                            {selections.length}
-                          </span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-3 pb-3 space-y-2">
-                        {selections.map((selection) => (
-                          <div
-                            key={selection.id}
-                            className="border border-border/70 rounded-md p-3 bg-card/50"
-                          >
-                            <p className="text-sm font-medium text-foreground">
-                              {getSelectionTitle(selection)}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Stato:{" "}
-                              {selection.statoProcesso || "Non disponibile"}
-                            </p>
-                          </div>
+                            <AccordionTrigger className="px-3 py-2 text-sm font-semibold hover:bg-muted/50">
+                              <div className="flex items-center gap-2">
+                                <span className={colorClasses.text}>
+                                  {statusLabel}
+                                </span>
+                                <span
+                                  className={`text-xs px-2 py-0.5 rounded-full ${colorClasses.badge}`}
+                                >
+                                  {selections.length}
+                                </span>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-3 pb-3 space-y-2">
+                              {selections.map((selection) => (
+                                <div
+                                  key={selection.id}
+                                  className="bg-muted/60 border border-border rounded-lg p-3 text-sm"
+                                >
+                                  <div className="font-medium text-foreground">
+                                    {getSelectionTitle(selection)}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Recruiter: {selection.recruiterId || "N/A"}
+                                  </div>
+                                </div>
+                              ))}
+                            </AccordionContent>
+                          </AccordionItem>
                         ))}
-                      </AccordionContent>
-                    </AccordionItem>
+                      </Accordion>
+                    </div>
                   );
                 })}
-              </Accordion>
+              </div>
             )}
           </div>
         </SheetContent>

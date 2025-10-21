@@ -179,6 +179,9 @@ export interface ProcessoInfo {
   momento_giornata: string;
   email_famiglia: string;
   record_id_processo_value: string;
+  informazioni_extra_riservate: string;
+  descrizione_animali_in_casa: string;
+  luogo_indirizzo: string;
 }
 
 export interface WorkerSelection {
@@ -233,6 +236,21 @@ export async function fetchRecruiterProcesses(): Promise<{
       ? processo.fields.email_famiglia[0]
       : processo.fields.email_famiglia;
 
+    const informazioniExtra = processo.fields.informazioni_extra_riservate;
+    const informazioniExtraValue = Array.isArray(informazioniExtra)
+      ? informazioniExtra[0]
+      : informazioniExtra;
+
+    const animaliCasa = processo.fields.descrizione_animali_in_casa;
+    const animaliCasaValue = Array.isArray(animaliCasa)
+      ? animaliCasa[0]
+      : animaliCasa;
+
+    const luogoIndirizzoField = processo.fields.luogo_indirizzo;
+    const luogoIndirizzoValue = Array.isArray(luogoIndirizzoField)
+      ? luogoIndirizzoField[0]
+      : luogoIndirizzoField;
+
     const stato = processo.fields.stato_res;
     const statoValue = Array.isArray(stato) ? stato[0] : stato;
     if (statoValue && String(statoValue).toLowerCase() !== 'fare ricerca') {
@@ -261,6 +279,9 @@ export async function fetchRecruiterProcesses(): Promise<{
       momento_giornata: momentoGiornata || '',
       email_famiglia: emailFamiglia || '',
       record_id_processo_value: processoIdentifier ? String(processoIdentifier) : processoId,
+      informazioni_extra_riservate: informazioniExtraValue || '',
+      descrizione_animali_in_casa: animaliCasaValue || '',
+      luogo_indirizzo: luogoIndirizzoValue || '',
     });
 
     if (!recruiterProcessMap.has(recruiterId)) {

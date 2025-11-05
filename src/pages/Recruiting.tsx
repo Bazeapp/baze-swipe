@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  Fragment,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -6,6 +13,7 @@ import {
   fetchRecruiterProcesses,
   fetchWorkerSelections,
   updateCandidateSelectionStatus,
+  updateWorkerRating,
   type RecruiterProcessSummary,
   type ProcessoInfo,
   type WorkerSelection,
@@ -36,6 +44,8 @@ import {
   Menu,
   List,
   Loader2,
+  Star,
+  Skull,
 } from "lucide-react";
 import {
   Accordion,
@@ -45,7 +55,6 @@ import {
 } from "@/components/ui/accordion";
 import ReactMarkdown from "react-markdown";
 import { SourceDataDrawer } from "@/components/SourceDataDrawer";
-import { DecisionDialog } from "@/components/DecisionDialog";
 import {
   Dialog,
   DialogContent,
@@ -63,6 +72,44 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import bazeLogo from "@/assets/baze-swipe.png";
+
+const AVAILABILITY_DAYS = [
+  { key: "lunedi", label: "Lunedì", shortLabel: "Lun" },
+  { key: "martedi", label: "Martedì", shortLabel: "Mar" },
+  { key: "mercoledi", label: "Mercoledì", shortLabel: "Mer" },
+  { key: "giovedi", label: "Giovedì", shortLabel: "Gio" },
+  { key: "venerdi", label: "Venerdì", shortLabel: "Ven" },
+  { key: "sabato", label: "Sabato", shortLabel: "Sab" },
+  { key: "domenica", label: "Domenica", shortLabel: "Dom" },
+];
+
+const AVAILABILITY_SLOTS = [
+  { key: "mattina", label: "Mattina" },
+  { key: "pomeriggio", label: "Pomeriggio" },
+  { key: "sera", label: "Sera" },
+];
+
+const SELECTION_PRIORITY: Record<string, number> = {
+  "Candidato - Good fit": 0,
+  Prospetto: 1,
+  "Candidato - Poor fit": 2,
+};
+
+const getRatingPriority = (rating: string | null | undefined): number => {
+  if (typeof rating === "string" && rating.trim().toLowerCase() === "star") {
+    return 0;
+  }
+  return 1;
+};
+
+const parseTravelTimeValue = (value: string | null): number => {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const textValue = typeof value === "string" ? value : String(value);
+  const match = textValue.match(/(\d+)\s*min/i);
+  if (match) return Number(match[1]);
+  const numeric = Number(textValue.replace(/[^\d.]/g, ""));
+  return Number.isFinite(numeric) ? numeric : Number.POSITIVE_INFINITY;
+};
 interface Lavoratore {
   id: string;
   nome: string;
@@ -75,6 +122,7 @@ interface Lavoratore {
   anni_esperienza_babysitter: number | null;
   anni_esperienza_badante: number | null;
   descrizione_personale: string | null;
+  descrizione_ricerca_lavoro: string | null;
   riassunto_esperienze_completo: string | null;
   mansioni_esperienze?: string[];
   feedback_ai: string | null;
@@ -90,10 +138,32 @@ interface Lavoratore {
   riassunto_profilo_breve: string | null;
   intervista_llm_transcript_history: string | null;
   descrizione_ricerca_famiglia: string | null;
+  rating: string | null;
   job_id: string | null;
   status: string;
   stato_selezione: string | null;
   stato_processo_res: string | null;
+  disponibilita_lunedi_mattina_lavoratore: boolean;
+  disponibilita_lunedi_pomeriggio_lavoratore: boolean;
+  disponibilita_lunedi_sera_lavoratore: boolean;
+  disponibilita_martedi_mattina_lavoratore: boolean;
+  disponibilita_martedi_pomeriggio_lavoratore: boolean;
+  disponibilita_martedi_sera_lavoratore: boolean;
+  disponibilita_mercoledi_mattina_lavoratore: boolean;
+  disponibilita_mercoledi_pomeriggio_lavoratore: boolean;
+  disponibilita_mercoledi_sera_lavoratore: boolean;
+  disponibilita_giovedi_mattina_lavoratore: boolean;
+  disponibilita_giovedi_pomeriggio_lavoratore: boolean;
+  disponibilita_giovedi_sera_lavoratore: boolean;
+  disponibilita_venerdi_mattina_lavoratore: boolean;
+  disponibilita_venerdi_pomeriggio_lavoratore: boolean;
+  disponibilita_venerdi_sera_lavoratore: boolean;
+  disponibilita_sabato_mattina_lavoratore: boolean;
+  disponibilita_sabato_pomeriggio_lavoratore: boolean;
+  disponibilita_sabato_sera_lavoratore: boolean;
+  disponibilita_domenica_mattina_lavoratore: boolean;
+  disponibilita_domenica_pomeriggio_lavoratore: boolean;
+  disponibilita_domenica_sera_lavoratore: boolean;
   match_disponibilità_famiglia_lavoratore: string | null;
   disponibilità_settimanale_recap: string | null;
   feedback_recruiter: string | null;
@@ -105,8 +175,6 @@ interface Lavoratore {
 const Recruiting = () => {
   const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [showRejectionInput, setShowRejectionInput] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -120,10 +188,6 @@ const Recruiting = () => {
   const [showFeedbackEdit, setShowFeedbackEdit] = useState(false);
   const [editedFeedback, setEditedFeedback] = useState("");
   const [feedbackIssue, setFeedbackIssue] = useState("");
-  const [decisionDialogOpen, setDecisionDialogOpen] = useState(false);
-  const [pendingDecision, setPendingDecision] = useState<
-    "pass" | "no_pass" | null
-  >(null);
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [workerSelectionsOpen, setWorkerSelectionsOpen] = useState(false);
@@ -131,6 +195,7 @@ const Recruiting = () => {
     []
   );
   const [workerSelectionsLoading, setWorkerSelectionsLoading] = useState(false);
+  const [ratingUpdating, setRatingUpdating] = useState(false);
   const navigate = useNavigate();
   const selectedRecruiterIdRef = useRef<string>("");
   const selectedProcessoRef = useRef<string>("");
@@ -272,7 +337,13 @@ const Recruiting = () => {
     "nascosto - oot": "grigio",
   };
 
-  type StatusColorKey = "blu" | "giallo" | "verde" | "rosso" | "grigio" | "default";
+  type StatusColorKey =
+    | "blu"
+    | "giallo"
+    | "verde"
+    | "rosso"
+    | "grigio"
+    | "default";
 
   const statusColorClasses: Record<
     StatusColorKey,
@@ -292,28 +363,31 @@ const Recruiting = () => {
     },
   };
 
-  const getStatusColorKey = useCallback((statusLabel: string): StatusColorKey => {
-    const normalized = statusLabel.trim().toLowerCase();
-    if (statusColorLookup[normalized]) {
-      return statusColorLookup[normalized] as StatusColorKey;
-    }
-    if (normalized.includes("colloqui")) {
-      return "verde";
-    }
-    if (normalized.includes("prova")) {
-      return "verde";
-    }
-    if (normalized.includes("ricerca")) {
-      return "blu";
-    }
-    if (normalized.includes("assegnare")) {
-      return "giallo";
-    }
-    if (normalized.includes("feedback")) {
-      return "giallo";
-    }
-    return "default";
-  }, []);
+  const getStatusColorKey = useCallback(
+    (statusLabel: string): StatusColorKey => {
+      const normalized = statusLabel.trim().toLowerCase();
+      if (statusColorLookup[normalized]) {
+        return statusColorLookup[normalized] as StatusColorKey;
+      }
+      if (normalized.includes("colloqui")) {
+        return "verde";
+      }
+      if (normalized.includes("prova")) {
+        return "verde";
+      }
+      if (normalized.includes("ricerca")) {
+        return "blu";
+      }
+      if (normalized.includes("assegnare")) {
+        return "giallo";
+      }
+      if (normalized.includes("feedback")) {
+        return "giallo";
+      }
+      return "default";
+    },
+    []
+  );
 
   const colorPriority: StatusColorKey[] = [
     "verde",
@@ -337,7 +411,10 @@ const Recruiting = () => {
     const statusMap = new Map<StatusColorKey, Map<string, WorkerSelection[]>>();
 
     workerSelections.forEach((selection) => {
-      const statusLabel = selection.statoProcesso?.trim() || "Senza stato";
+      const statusLabel =
+        selection.statoSelezione?.trim() ||
+        selection.statoProcesso?.trim() ||
+        "Senza stato";
       const colorKey = getStatusColorKey(statusLabel);
 
       if (!statusMap.has(colorKey)) {
@@ -367,10 +444,10 @@ const Recruiting = () => {
         };
       })
       .filter(Boolean) as Array<{
-        colorKey: StatusColorKey;
-        label: string;
-        statuses: Array<[string, WorkerSelection[]]>;
-      }>;
+      colorKey: StatusColorKey;
+      label: string;
+      statuses: Array<[string, WorkerSelection[]]>;
+    }>;
   }, [workerSelections, getStatusColorKey]);
 
   const getSelectionTitle = useCallback(
@@ -578,8 +655,6 @@ const Recruiting = () => {
     setLavoratori([]);
     setLoading(true);
     setCurrentIndex(0);
-    setShowRejectionInput(false);
-    setRejectionReason("");
   }, []);
 
   useEffect(() => {
@@ -600,77 +675,57 @@ const Recruiting = () => {
 
     loadLavoratori(selectedRecruiter, selectedProcesso);
   }, [selectedRecruiter, selectedProcesso, processoInfo, loadLavoratori]);
-  const handleDecisionClick = (decision: "pass" | "no_pass") => {
-    setPendingDecision(decision);
-    setDecisionDialogOpen(true);
-  };
-
-  const handleConfirmDecision = async (
-    highlights: Array<{ text: string; fieldId: string }>
-  ) => {
-    const currentLavoratore = lavoratori[currentIndex];
-    if (!currentLavoratore || !pendingDecision) return;
-
-    const nextStatus =
-      pendingDecision === "pass" ? "Da colloquiare" : "Non selezionato";
-
-    try {
-      await updateCandidateSelectionStatus(currentLavoratore.id, nextStatus);
-    } catch (error) {
-      console.error("Errore aggiornamento stato selezione:", error);
-      toast({
-        title: "Errore",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Impossibile aggiornare lo stato in Airtable",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log("Decision confirmed:", {
-      candidate: currentLavoratore.nome,
-      decision: pendingDecision,
-      highlights,
-      flagType: pendingDecision === "pass" ? "green_flags" : "red_flags",
-      rejectionReason: pendingDecision === "no_pass" ? rejectionReason : null,
-    });
-
-    toast({
-      title:
-        pendingDecision === "pass"
-          ? "Candidata Approvata"
-          : "Candidata Rifiutata",
-      description: `${currentLavoratore.nome} è stata ${
-        pendingDecision === "pass" ? "approvata" : "rifiutata"
-      } con ${highlights.length} ${
-        pendingDecision === "pass" ? "green flags" : "red flags"
-      } (simulazione)`,
-    });
-
-    setShowRejectionInput(false);
-    setRejectionReason("");
-    setDecisionDialogOpen(false);
-    setPendingDecision(null);
-
-    setWorkerSelectionsOpen(false);
-    setWorkerSelections([]);
-
-    const updatedLavoratori = lavoratori.filter(
-      (_, index) => index !== currentIndex
-    );
-
-    setLavoratori(updatedLavoratori);
-    setCurrentIndex((prev) => {
-      if (updatedLavoratori.length === 0) {
-        return 0;
+  const handleDecisionClick = useCallback(
+    async (decision: "pass" | "no_pass") => {
+      const currentLavoratore = lavoratori[currentIndex];
+      if (!currentLavoratore) {
+        return;
       }
-      return prev >= updatedLavoratori.length
-        ? updatedLavoratori.length - 1
-        : prev;
-    });
-  };
+
+      const nextStatus =
+        decision === "pass" ? "Da colloquiare" : "Non selezionato";
+
+      try {
+        await updateCandidateSelectionStatus(currentLavoratore.id, nextStatus);
+
+        toast({
+          title:
+            decision === "pass" ? "Candidata approvata" : "Candidata rifiutata",
+          description: `${currentLavoratore.nome} è stata ${
+            decision === "pass" ? "contrassegnata come pass" : "rimossa"
+          }`,
+        });
+
+        setWorkerSelectionsOpen(false);
+        setWorkerSelections([]);
+
+        const updatedLavoratori = lavoratori.filter(
+          (_, index) => index !== currentIndex
+        );
+
+        setLavoratori(updatedLavoratori);
+        setCurrentIndex((prev) => {
+          if (updatedLavoratori.length === 0) {
+            return 0;
+          }
+          return prev >= updatedLavoratori.length
+            ? updatedLavoratori.length - 1
+            : prev;
+        });
+      } catch (error) {
+        console.error("Errore aggiornamento stato selezione:", error);
+        toast({
+          title: "Errore",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Impossibile aggiornare lo stato in Airtable",
+          variant: "destructive",
+        });
+      }
+    },
+    [lavoratori, currentIndex, toast]
+  );
   const handleRefreshFromAirtable = async () => {
     if (!selectedRecruiter || !selectedProcesso) {
       return;
@@ -738,6 +793,155 @@ const Recruiting = () => {
     setEditedFeedback("");
     setFeedbackIssue("");
   };
+  const currentLavoratore = lavoratori[currentIndex];
+  const currentProcessoInfo = selectedProcesso
+    ? processoInfo[selectedProcesso]
+    : undefined;
+  const weeklyAvailability = useMemo(
+    () =>
+      AVAILABILITY_SLOTS.map((slot) => ({
+        slot,
+        days: AVAILABILITY_DAYS.map((day) => {
+          const fieldKey = `disponibilita_${day.key}_${slot.key}_lavoratore`;
+          const isAvailable = Boolean(
+            currentLavoratore &&
+              (currentLavoratore as unknown as Record<string, unknown>)[
+                fieldKey
+              ]
+          );
+          return { day, isAvailable };
+        }),
+      })),
+    [currentLavoratore]
+  );
+
+  const availabilitySummary = useMemo(
+    () =>
+      weeklyAvailability
+        .map(({ slot, days }) => ({
+          slot,
+          days: days
+            .filter(({ isAvailable }) => isAvailable)
+            .map(({ day }) => day),
+        }))
+        .filter((item) => item.days.length > 0),
+    [weeklyAvailability]
+  );
+
+  const hasAnyAvailability = useMemo(
+    () =>
+      weeklyAvailability.some((slotRow) =>
+        slotRow.days.some((dayAvailability) => dayAvailability.isAvailable)
+      ),
+    [weeklyAvailability]
+  );
+
+  const sortLavoratori = useCallback((workers: Lavoratore[]) => {
+    return [...workers].sort((a, b) => {
+      const ratingOrder =
+        getRatingPriority(a.rating) - getRatingPriority(b.rating);
+      if (ratingOrder !== 0) {
+        return ratingOrder;
+      }
+
+      const priorityA = SELECTION_PRIORITY[a.stato_selezione ?? ""] ?? 99;
+      const priorityB = SELECTION_PRIORITY[b.stato_selezione ?? ""] ?? 99;
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      return (
+        parseTravelTimeValue(a.travel_time) -
+        parseTravelTimeValue(b.travel_time)
+      );
+    });
+  }, []);
+
+  const handleRatingUpdate = useCallback(
+    async (desiredRating: "star" | "blacklist") => {
+      const worker = lavoratori[currentIndex];
+      if (!worker) {
+        return;
+      }
+      if (!worker.lavoratore_record_id) {
+        toast({
+          title: "ID mancante",
+          description: "Impossibile aggiornare il rating per questo profilo",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (ratingUpdating) {
+        return;
+      }
+
+      const currentRating = worker.rating ?? null;
+      const nextRating = currentRating === desiredRating ? null : desiredRating;
+
+      if (nextRating === "blacklist" && currentRating !== "blacklist") {
+        const confirmed =
+          typeof window === "undefined"
+            ? true
+            : window.confirm(
+                "Questo lavoratore non verrà mai più mostrato, sei sicuro?"
+              );
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      try {
+        setRatingUpdating(true);
+        await updateWorkerRating(worker.lavoratore_record_id, nextRating);
+
+        setLavoratori((prev) => {
+          const updated = prev
+            .map((item) =>
+              item.id === worker.id ? { ...item, rating: nextRating } : item
+            )
+            .filter((item) => item.rating !== "blacklist");
+
+          const sorted = sortLavoratori(updated);
+          const targetIndex = sorted.findIndex((item) => item.id === worker.id);
+
+          setCurrentIndex((prevIndex) => {
+            if (targetIndex !== -1) {
+              return targetIndex;
+            }
+            if (sorted.length === 0) {
+              return 0;
+            }
+            const fallback = Math.min(prevIndex, sorted.length - 1);
+            return fallback < 0 ? 0 : fallback;
+          });
+
+          return sorted;
+        });
+
+        toast({
+          title:
+            nextRating === "blacklist"
+              ? "Profilo nascosto"
+              : nextRating === "star"
+              ? "Profilo salvato nei preferiti"
+              : "Rating rimosso",
+        });
+      } catch (error) {
+        console.error("Errore aggiornamento rating:", error);
+        toast({
+          title: "Errore",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Impossibile aggiornare il rating",
+          variant: "destructive",
+        });
+      } finally {
+        setRatingUpdating(false);
+      }
+    },
+    [lavoratori, currentIndex, ratingUpdating, sortLavoratori, toast]
+  );
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
@@ -748,11 +952,6 @@ const Recruiting = () => {
       </div>
     );
   }
-  const currentLavoratore = lavoratori[currentIndex];
-  const currentProcessoInfo = selectedProcesso
-    ? processoInfo[selectedProcesso]
-    : undefined;
-
   if (!currentLavoratore) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
@@ -776,6 +975,9 @@ const Recruiting = () => {
   ]
     .filter(Boolean)
     .join("\n");
+  const descrizioneRicercaLavoro =
+    currentLavoratore.descrizione_ricerca_lavoro?.trim();
+  const chiSono = currentLavoratore.chi_sono?.trim();
 
   const mapDestination =
     combinedFamilyAddress || currentLavoratore.indirizzo_famiglia || "";
@@ -790,6 +992,10 @@ const Recruiting = () => {
   const badanteYearsFormatted = formatYears(
     currentLavoratore.anni_esperienza_badante
   );
+  const currentRating = currentLavoratore.rating ?? null;
+  const isStarred = currentRating === "star";
+  const ratingButtonsDisabled =
+    ratingUpdating || !currentLavoratore.lavoratore_record_id;
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar Drawer */}
@@ -817,8 +1023,6 @@ const Recruiting = () => {
                     setLavoratori([]);
                     setLoading(true);
                     setCurrentIndex(0);
-                    setShowRejectionInput(false);
-                    setRejectionReason("");
                     setSidebarOpen(false);
                   }}
                   className={`w-full px-4 py-3 text-left text-sm transition-colors ${
@@ -1015,9 +1219,46 @@ const Recruiting = () => {
                       />
                     )}
                     <div className="flex-1">
-                      <h2 className="text-2xl font-semibold text-foreground">
-                        {currentLavoratore.nome}
-                      </h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-2xl font-semibold text-foreground">
+                          {currentLavoratore.nome}
+                        </h2>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            disabled={ratingButtonsDisabled}
+                            onClick={() => handleRatingUpdate("star")}
+                            className={`h-8 w-8 border transition-colors ${
+                              isStarred
+                                ? "border-amber-200 bg-amber-50 text-amber-500"
+                                : "border-transparent text-muted-foreground hover:text-amber-500"
+                            }`}
+                            aria-label={
+                              isStarred
+                                ? "Rimuovi dai preferiti"
+                                : "Segna come preferito"
+                            }
+                          >
+                            <Star
+                              className="h-4 w-4"
+                              fill={isStarred ? "currentColor" : "none"}
+                            />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            disabled={ratingButtonsDisabled}
+                            onClick={() => handleRatingUpdate("blacklist")}
+                            className="h-8 w-8 border border-transparent text-muted-foreground hover:text-destructive"
+                            aria-label="Nascondi definitivamente il profilo"
+                          >
+                            <Skull className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                         {currentLavoratore.eta && (
                           <span>{currentLavoratore.eta} anni</span>
@@ -1048,6 +1289,21 @@ const Recruiting = () => {
                     </Button>
                   </div>
                 </div>
+
+                {(descrizioneRicercaLavoro || chiSono) && (
+                  <div className="space-y-3">
+                    {descrizioneRicercaLavoro && (
+                      <p className="text-xs text-muted-foreground whitespace-pre-line">
+                        {descrizioneRicercaLavoro}
+                      </p>
+                    )}
+                    {chiSono && (
+                      <p className="text-xs text-muted-foreground whitespace-pre-line">
+                        {chiSono}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Info boxes - Distanza, Esperienza, Disponibilità */}
                 <div className="space-y-3">
@@ -1301,7 +1557,70 @@ const Recruiting = () => {
                             {matchText}
                           </p>
 
-                          {/* Accordion for weekly availability */}
+                          <div className="mt-3 space-y-3">
+                            {hasAnyAvailability ? (
+                              <div className="space-y-1 text-xs text-muted-foreground">
+                                {availabilitySummary.map(({ slot, days }) => (
+                                  <div key={slot.key}>
+                                    <span className="font-medium text-foreground"></span>{" "}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Nessuna disponibilità indicata nelle fasce
+                                orarie.
+                              </p>
+                            )}
+
+                            <div className="rounded-lg border border-border bg-background/60">
+                              <div className="overflow-x-auto">
+                                <div className="min-w-[520px] p-3">
+                                  <div
+                                    className="grid gap-2"
+                                    style={{
+                                      gridTemplateColumns: `120px repeat(${AVAILABILITY_DAYS.length}, minmax(0, 1fr))`,
+                                    }}
+                                  >
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                      Fascia
+                                    </div>
+                                    {AVAILABILITY_DAYS.map((day) => (
+                                      <div
+                                        key={day.key}
+                                        className="text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                      >
+                                        {day.shortLabel}
+                                      </div>
+                                    ))}
+                                    {weeklyAvailability.map(
+                                      ({ slot, days }) => (
+                                        <Fragment key={slot.key}>
+                                          <div className="text-xs font-semibold text-muted-foreground">
+                                            {slot.label}
+                                          </div>
+                                          {days.map(({ day, isAvailable }) => (
+                                            <div
+                                              key={`${slot.key}-${day.key}`}
+                                              className={`rounded-md border px-2 py-1 text-center text-xs font-medium transition-colors ${
+                                                isAvailable
+                                                  ? "border-green-200 bg-green-50 text-green-700"
+                                                  : "border-border bg-muted text-muted-foreground"
+                                              }`}
+                                            >
+                                              {isAvailable ? "Sì" : "No"}
+                                            </div>
+                                          ))}
+                                        </Fragment>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Disponibilità - dettaglio testo Airtable */}
                           {currentLavoratore.disponibilità_settimanale_recap && (
                             <Accordion
                               type="single"
@@ -1449,72 +1768,73 @@ const Recruiting = () => {
               </p>
             ) : (
               <div className="space-y-4">
-                {colorGroupedWorkerSelections.map(({ colorKey, label, statuses }) => {
-                  const colorClasses = statusColorClasses[colorKey];
-                  return (
-                    <div
-                      key={colorKey}
-                      className="border border-border rounded-lg overflow-hidden"
-                    >
+                {colorGroupedWorkerSelections.map(
+                  ({ colorKey, label, statuses }) => {
+                    const colorClasses = statusColorClasses[colorKey];
+                    return (
                       <div
-                        className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide ${colorClasses.text}`}
+                        key={colorKey}
+                        className="border border-border rounded-lg overflow-hidden"
                       >
-                        {label}
-                      </div>
-                      <Accordion type="multiple" className="border-t border-border divide-y divide-border">
-                        {statuses.map(([statusLabel, selections]) => (
-                          <AccordionItem
-                            key={`${colorKey}-${statusLabel || "Senza stato"}`}
-                            value={`${colorKey}-${statusLabel || "Senza stato"}`}
-                            className="border-none"
-                          >
-                            <AccordionTrigger className="px-3 py-2 text-sm font-semibold hover:bg-muted/50">
-                              <div className="flex items-center gap-2">
-                                <span className={colorClasses.text}>
-                                  {statusLabel}
-                                </span>
-                                <span
-                                  className={`text-xs px-2 py-0.5 rounded-full ${colorClasses.badge}`}
-                                >
-                                  {selections.length}
-                                </span>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-3 pb-3 space-y-2">
-                              {selections.map((selection) => (
-                                <div
-                                  key={selection.id}
-                                  className="bg-muted/60 border border-border rounded-lg p-3 text-sm"
-                                >
-                                  <div className="font-medium text-foreground">
-                                    {getSelectionTitle(selection)}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    Recruiter: {selection.recruiterId || "N/A"}
-                                  </div>
+                        <div
+                          className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide ${colorClasses.text}`}
+                        >
+                          {label}
+                        </div>
+                        <Accordion
+                          type="multiple"
+                          className="border-t border-border divide-y divide-border"
+                        >
+                          {statuses.map(([statusLabel, selections]) => (
+                            <AccordionItem
+                              key={`${colorKey}-${
+                                statusLabel || "Senza stato"
+                              }`}
+                              value={`${colorKey}-${
+                                statusLabel || "Senza stato"
+                              }`}
+                              className="border-none"
+                            >
+                              <AccordionTrigger className="px-3 py-2 text-sm font-semibold hover:bg-muted/50">
+                                <div className="flex items-center gap-2">
+                                  <span className={colorClasses.text}>
+                                    {statusLabel}
+                                  </span>
+                                  <span
+                                    className={`text-xs px-2 py-0.5 rounded-full ${colorClasses.badge}`}
+                                  >
+                                    {selections.length}
+                                  </span>
                                 </div>
-                              ))}
-                            </AccordionContent>
-                          </AccordionItem>
-                        ))}
-                      </Accordion>
-                    </div>
-                  );
-                })}
+                              </AccordionTrigger>
+                              <AccordionContent className="px-3 pb-3 space-y-2">
+                                {selections.map((selection) => (
+                                  <div
+                                    key={selection.id}
+                                    className="bg-muted/60 border border-border rounded-lg p-3 text-sm"
+                                  >
+                                    <div className="font-medium text-foreground">
+                                      {getSelectionTitle(selection)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Recruiter:{" "}
+                                      {selection.recruiterId || "N/A"}
+                                    </div>
+                                  </div>
+                                ))}
+                              </AccordionContent>
+                            </AccordionItem>
+                          ))}
+                        </Accordion>
+                      </div>
+                    );
+                  }
+                )}
               </div>
             )}
           </div>
         </SheetContent>
       </Sheet>
-
-      {/* Decision Dialog with Fact-Check */}
-      <DecisionDialog
-        open={decisionDialogOpen}
-        onOpenChange={setDecisionDialogOpen}
-        lavoratore={currentLavoratore}
-        decisionType={pendingDecision}
-        onConfirm={handleConfirmDecision}
-      />
 
       {/* Feedback Issue Dialog */}
       <Dialog open={showFeedbackEdit} onOpenChange={setShowFeedbackEdit}>

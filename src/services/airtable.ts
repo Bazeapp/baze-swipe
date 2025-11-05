@@ -38,10 +38,32 @@ export interface Lavoratore {
   riassunto_profilo_breve: string | null;
   intervista_llm_transcript_history: string | null;
   descrizione_ricerca_famiglia: string | null;
+  rating: string | null;
   job_id: string | null;
   status: string;
   stato_selezione: string | null;
   stato_processo_res: string | null;
+  disponibilita_lunedi_mattina_lavoratore: boolean;
+  disponibilita_lunedi_pomeriggio_lavoratore: boolean;
+  disponibilita_lunedi_sera_lavoratore: boolean;
+  disponibilita_martedi_mattina_lavoratore: boolean;
+  disponibilita_martedi_pomeriggio_lavoratore: boolean;
+  disponibilita_martedi_sera_lavoratore: boolean;
+  disponibilita_mercoledi_mattina_lavoratore: boolean;
+  disponibilita_mercoledi_pomeriggio_lavoratore: boolean;
+  disponibilita_mercoledi_sera_lavoratore: boolean;
+  disponibilita_giovedi_mattina_lavoratore: boolean;
+  disponibilita_giovedi_pomeriggio_lavoratore: boolean;
+  disponibilita_giovedi_sera_lavoratore: boolean;
+  disponibilita_venerdi_mattina_lavoratore: boolean;
+  disponibilita_venerdi_pomeriggio_lavoratore: boolean;
+  disponibilita_venerdi_sera_lavoratore: boolean;
+  disponibilita_sabato_mattina_lavoratore: boolean;
+  disponibilita_sabato_pomeriggio_lavoratore: boolean;
+  disponibilita_sabato_sera_lavoratore: boolean;
+  disponibilita_domenica_mattina_lavoratore: boolean;
+  disponibilita_domenica_pomeriggio_lavoratore: boolean;
+  disponibilita_domenica_sera_lavoratore: boolean;
   match_disponibilità_famiglia_lavoratore: string | null;
   disponibilità_settimanale_recap: string | null;
   feedback_recruiter: string | null;
@@ -165,6 +187,40 @@ function escapeFormulaValue(value: string): string {
   return value.replace(/'/g, "\\'");
 }
 
+function parseAvailabilityField(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return false;
+    }
+    return parseAvailabilityField(value[0]);
+  }
+
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    if (Number.isNaN(value)) {
+      return false;
+    }
+    return value === 1;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+    return ['si', 'sì', 'yes', 'true', '1'].includes(normalized);
+  }
+
+  return false;
+}
+
 export interface RecruiterProcessSummary {
   id: string;
   nome: string;
@@ -189,6 +245,7 @@ export interface WorkerSelection {
   processoId: string | null;
   processoTitle: string | null;
   statoProcesso: string | null;
+  statoSelezione: string | null;
   recruiterId: string | null;
 }
 
@@ -333,7 +390,7 @@ export async function fetchCandidates(
   );
 
   const lavoratoriQuery: Record<string, string | undefined> = {
-    pageSize: '20',
+    pageSize: '60',
     filterByFormula: lavoratoriFormulaParts.length === 1
       ? lavoratoriFormulaParts[0]
       : `AND(${lavoratoriFormulaParts.join(',')})`
@@ -459,6 +516,16 @@ export async function fetchCandidates(
     const mansioniArrays = lavoratoreId ? esperienzeMap.get(lavoratoreId) || [] : [];
     const mansioniList = mansioniArrays.flat();
 
+    const getAvailability = (fieldName: string): boolean =>
+      parseAvailabilityField(fields[fieldName]);
+
+    const ratingField = fields['rating (from lavoratore)'];
+    const ratingValue = Array.isArray(ratingField) ? ratingField[0] : ratingField;
+    const normalizedRating =
+      typeof ratingValue === 'string' && ratingValue.trim().length > 0
+        ? ratingValue.trim().toLowerCase()
+        : null;
+
     const lavoratore: Lavoratore = {
       id: record.id,
       nome,
@@ -512,6 +579,28 @@ export async function fetchCandidates(
           ? fields['descrizione_ricerca_famiglia (from processo_res)'][0]
           : fields['descrizione_ricerca_famiglia (from processo_res)']
         : null,
+      rating: normalizedRating,
+      disponibilita_lunedi_mattina_lavoratore: getAvailability('disponibilita_lunedi_mattina_lavoratore'),
+      disponibilita_lunedi_pomeriggio_lavoratore: getAvailability('disponibilita_lunedi_pomeriggio_lavoratore'),
+      disponibilita_lunedi_sera_lavoratore: getAvailability('disponibilita_lunedi_sera_lavoratore'),
+      disponibilita_martedi_mattina_lavoratore: getAvailability('disponibilita_martedi_mattina_lavoratore'),
+      disponibilita_martedi_pomeriggio_lavoratore: getAvailability('disponibilita_martedi_pomeriggio_lavoratore'),
+      disponibilita_martedi_sera_lavoratore: getAvailability('disponibilita_martedi_sera_lavoratore'),
+      disponibilita_mercoledi_mattina_lavoratore: getAvailability('disponibilita_mercoledi_mattina_lavoratore'),
+      disponibilita_mercoledi_pomeriggio_lavoratore: getAvailability('disponibilita_mercoledi_pomeriggio_lavoratore'),
+      disponibilita_mercoledi_sera_lavoratore: getAvailability('disponibilita_mercoledi_sera_lavoratore'),
+      disponibilita_giovedi_mattina_lavoratore: getAvailability('disponibilita_giovedi_mattina_lavoratore'),
+      disponibilita_giovedi_pomeriggio_lavoratore: getAvailability('disponibilita_giovedi_pomeriggio_lavoratore'),
+      disponibilita_giovedi_sera_lavoratore: getAvailability('disponibilita_giovedi_sera_lavoratore'),
+      disponibilita_venerdi_mattina_lavoratore: getAvailability('disponibilita_venerdi_mattina_lavoratore'),
+      disponibilita_venerdi_pomeriggio_lavoratore: getAvailability('disponibilita_venerdi_pomeriggio_lavoratore'),
+      disponibilita_venerdi_sera_lavoratore: getAvailability('disponibilita_venerdi_sera_lavoratore'),
+      disponibilita_sabato_mattina_lavoratore: getAvailability('disponibilita_sabato_mattina_lavoratore'),
+      disponibilita_sabato_pomeriggio_lavoratore: getAvailability('disponibilita_sabato_pomeriggio_lavoratore'),
+      disponibilita_sabato_sera_lavoratore: getAvailability('disponibilita_sabato_sera_lavoratore'),
+      disponibilita_domenica_mattina_lavoratore: getAvailability('disponibilita_domenica_mattina_lavoratore'),
+      disponibilita_domenica_pomeriggio_lavoratore: getAvailability('disponibilita_domenica_pomeriggio_lavoratore'),
+      disponibilita_domenica_sera_lavoratore: getAvailability('disponibilita_domenica_sera_lavoratore'),
       match_disponibilità_famiglia_lavoratore: matchDisponibilita,
       disponibilità_settimanale_recap: fields.disponibilità_settimanale_recap || null,
       feedback_recruiter: fields.feedback_recruiter || null,
@@ -543,8 +632,23 @@ export async function fetchCandidates(
     Prospetto: 1,
     'Candidato - Poor fit': 2,
   };
+  const ratingPriority = (rating: string | null | undefined): number => {
+    if (typeof rating === 'string' && rating.trim().toLowerCase() === 'star') {
+      return 0;
+    }
+    return 1;
+  };
 
-  lavoratori.sort((a, b) => {
+  const filteredLavoratori = lavoratori.filter(
+    (worker) => worker.rating !== 'blacklist'
+  );
+
+  filteredLavoratori.sort((a, b) => {
+    const ratingOrder = ratingPriority(a.rating) - ratingPriority(b.rating);
+    if (ratingOrder !== 0) {
+      return ratingOrder;
+    }
+
     const priorityA = selectionPriority[a.stato_selezione ?? ''] ?? 99;
     const priorityB = selectionPriority[b.stato_selezione ?? ''] ?? 99;
     if (priorityA !== priorityB) {
@@ -565,7 +669,7 @@ export async function fetchCandidates(
     return parseTime(a.travel_time) - parseTime(b.travel_time);
   });
 
-  return lavoratori;
+  return filteredLavoratori;
 }
 
 export async function fetchWorkerSelections(
@@ -629,12 +733,17 @@ export async function fetchWorkerSelections(
     const recruiterId = Array.isArray(recruiterField)
       ? recruiterField[0]
       : recruiterField;
+    const selectionStatusRaw = fields.stato_selezione;
+    const selectionStatus = Array.isArray(selectionStatusRaw)
+      ? selectionStatusRaw[0]
+      : selectionStatusRaw;
 
     return {
       id: record.id,
       processoId: processoRes ? String(processoRes) : null,
       processoTitle: processoTitleValue ? String(processoTitleValue) : null,
       statoProcesso: stato ? String(stato) : null,
+      statoSelezione: selectionStatus ? String(selectionStatus) : null,
       recruiterId: recruiterId ? String(recruiterId) : null,
     };
   });
@@ -668,5 +777,36 @@ export async function updateCandidateSelectionStatus(
     console.error('Airtable update error:', response.status, response.statusText);
     console.error('Error response body:', errorBody);
     throw new Error('Impossibile aggiornare lo stato su Airtable');
+  }
+}
+
+export async function updateWorkerRating(
+  lavoratoreRecordId: string,
+  rating: 'star' | 'blacklist' | null
+): Promise<void> {
+  if (!lavoratoreRecordId) {
+    throw new Error('Record ID del lavoratore mancante');
+  }
+
+  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/lavoratori/${lavoratoreRecordId}`;
+
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      fields: {
+        rating: rating ?? null,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error('Airtable update error:', response.status, response.statusText);
+    console.error('Error response body:', errorBody);
+    throw new Error('Impossibile aggiornare il rating su Airtable');
   }
 }

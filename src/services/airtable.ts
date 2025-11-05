@@ -39,6 +39,8 @@ export interface Lavoratore {
   intervista_llm_transcript_history: string | null;
   descrizione_ricerca_famiglia: string | null;
   rating: string | null;
+  documenti_in_regola_lavoratore: string | null;
+  stati_verifica_documento: string | null;
   job_id: string | null;
   status: string;
   stato_selezione: string | null;
@@ -525,6 +527,15 @@ export async function fetchCandidates(
       typeof ratingValue === 'string' && ratingValue.trim().length > 0
         ? ratingValue.trim().toLowerCase()
         : null;
+    const documentsStatusRaw = fields.documenti_in_regola_lavoratore;
+    const documentsStatus = Array.isArray(documentsStatusRaw)
+      ? documentsStatusRaw[0]
+      : documentsStatusRaw;
+    const documentsVerificationRaw =
+      fields['stati_verifica_documento (from lavoratore)'];
+    const documentsVerification = Array.isArray(documentsVerificationRaw)
+      ? documentsVerificationRaw[0]
+      : documentsVerificationRaw;
 
     const lavoratore: Lavoratore = {
       id: record.id,
@@ -580,6 +591,12 @@ export async function fetchCandidates(
           : fields['descrizione_ricerca_famiglia (from processo_res)']
         : null,
       rating: normalizedRating,
+      documenti_in_regola_lavoratore: documentsStatus
+        ? String(documentsStatus)
+        : null,
+      stati_verifica_documento: documentsVerification
+        ? String(documentsVerification)
+        : null,
       disponibilita_lunedi_mattina_lavoratore: getAvailability('disponibilita_lunedi_mattina_lavoratore'),
       disponibilita_lunedi_pomeriggio_lavoratore: getAvailability('disponibilita_lunedi_pomeriggio_lavoratore'),
       disponibilita_lunedi_sera_lavoratore: getAvailability('disponibilita_lunedi_sera_lavoratore'),

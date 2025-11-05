@@ -21,7 +21,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -44,6 +46,8 @@ import {
   Menu,
   List,
   Loader2,
+  Check,
+  Search,
   Star,
   Skull,
 } from "lucide-react";
@@ -71,6 +75,11 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import bazeLogo from "@/assets/baze-swipe.png";
 
 const AVAILABILITY_DAYS = [
@@ -139,6 +148,8 @@ interface Lavoratore {
   intervista_llm_transcript_history: string | null;
   descrizione_ricerca_famiglia: string | null;
   rating: string | null;
+  documenti_in_regola_lavoratore: string | null;
+  stati_verifica_documento: string | null;
   job_id: string | null;
   status: string;
   stato_selezione: string | null;
@@ -996,6 +1007,26 @@ const Recruiting = () => {
   const isStarred = currentRating === "star";
   const ratingButtonsDisabled =
     ratingUpdating || !currentLavoratore.lavoratore_record_id;
+  const documentsExpectedText = "Ho tutti i documenti in regola";
+  const documentsStatement =
+    currentLavoratore.documenti_in_regola_lavoratore?.trim() || "";
+  const documentsStatementNormalized = documentsStatement.toLowerCase();
+  const hasDocumentsDeclaration = documentsStatement.length > 0;
+  const hasDocumentsInRegola =
+    documentsStatementNormalized === documentsExpectedText.toLowerCase();
+  const documentVerificationStatus =
+    currentLavoratore.stati_verifica_documento?.trim().toLowerCase() || "";
+  const documentsApproved = documentVerificationStatus === "approved";
+  const documentsBadgeLabel = hasDocumentsInRegola
+    ? "Documenti in regola"
+    : hasDocumentsDeclaration
+    ? documentsStatement
+    : "Documenti non dichiarati";
+  const documentsBadgeClass = hasDocumentsInRegola
+    ? documentsApproved
+      ? "border-green-200 bg-green-100 text-green-700"
+      : "border-blue-200 bg-blue-100 text-blue-700"
+    : "border-border bg-muted text-muted-foreground";
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar Drawer */}
@@ -1258,6 +1289,33 @@ const Recruiting = () => {
                             <Skull className="h-4 w-4" />
                           </Button>
                         </div>
+                      </div>
+                      <div className="mt-1">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "items-center gap-1 px-3 py-1 text-xs font-medium",
+                            documentsBadgeClass
+                          )}
+                        >
+                          {documentsBadgeLabel}
+                          {hasDocumentsInRegola &&
+                            (documentsApproved ? (
+                              <Check className="h-3.5 w-3.5 text-green-600" aria-hidden />
+                            ) : (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Search
+                                    className="h-3.5 w-3.5 cursor-help text-blue-600"
+                                    aria-hidden
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent sideOffset={6} className="px-2 py-1 text-xs">
+                                  Da verificare
+                                </TooltipContent>
+                              </Tooltip>
+                            ))}
+                        </Badge>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                         {currentLavoratore.eta && (

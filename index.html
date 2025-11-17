@@ -16,6 +16,21 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     <link rel="icon" href="./favicon.ico" />
+    <script>
+      // Handle GitHub Pages SPA redirect (see public/404.html)
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var redirectPath = params.get("p");
+        if (redirectPath) {
+          var base = "/baze-swipe";
+          var normalized =
+            redirectPath.startsWith("/") && redirectPath.length > 1
+              ? redirectPath
+              : "/" + redirectPath;
+          window.history.replaceState({}, "", base + normalized);
+        }
+      })();
+    </script>
   </head>
 
   <body>

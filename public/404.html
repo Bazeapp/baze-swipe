@@ -2,14 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0;url=/baze-swipe/" />
     <script>
-      // Preserve path for SPA routing on GitHub Pages
+      // SPA redirect for GitHub Pages: preserve path/query/hash and send to index with encoded param
       (function () {
-        var path = window.location.pathname.replace(/^\/baze-swipe/, "");
+        var base = "/baze-swipe";
+        var path = window.location.pathname.startsWith(base)
+          ? window.location.pathname.slice(base.length)
+          : window.location.pathname;
         var query = window.location.search || "";
         var hash = window.location.hash || "";
-        window.location.replace("/baze-swipe/" + path + query + hash);
+        var target = base + "/?p=" + encodeURIComponent(path + query + hash);
+        window.location.replace(target);
       })();
     </script>
   </head>

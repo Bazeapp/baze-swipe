@@ -167,12 +167,25 @@ const Recruiting = () => {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSupabaseSession(session);
       setUser(session?.user ?? null);
+      if (!session) {
+        navigate("/auth", { replace: true });
+      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        navigate("/auth", { replace: true });
+      }
+    };
+    void checkSession();
+  }, [navigate]);
 
   useEffect(() => {
     const worker = lavoratori[currentIndex];

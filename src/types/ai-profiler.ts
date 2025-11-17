@@ -17,6 +17,7 @@ export type AiProfilerContextSection = Record<
 export interface AiProfilerResponse {
   decision: AiProfilerDecision;
   reason: string;
+  score?: number;
   areas: AiProfilerAreas;
   risk_flags?: string[];
   version?: string;

@@ -113,6 +113,22 @@ const HIGHLIGHT_SECTIONS: Record<string, string> = {
   esperienze: "Esperienze dichiarate",
 };
 
+const AVAILABILITY_DAYS = [
+  { key: "lunedi", label: "Lunedì", shortLabel: "Lun" },
+  { key: "martedi", label: "Martedì", shortLabel: "Mar" },
+  { key: "mercoledi", label: "Mercoledì", shortLabel: "Mer" },
+  { key: "giovedi", label: "Giovedì", shortLabel: "Gio" },
+  { key: "venerdi", label: "Venerdì", shortLabel: "Ven" },
+  { key: "sabato", label: "Sabato", shortLabel: "Sab" },
+  { key: "domenica", label: "Domenica", shortLabel: "Dom" },
+];
+
+const AVAILABILITY_SLOTS = [
+  { key: "mattina", label: "Mattina" },
+  { key: "pomeriggio", label: "Pomeriggio" },
+  { key: "sera", label: "Sera" },
+];
+
 const normalizeAreaKey = (key: string) =>
   key === "selezioni_attive" ? "disponibilita" : key;
 
@@ -272,6 +288,59 @@ export function AiProfilerPanel({
     index: number
   ) => `${areaKey}-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index}`;
 
+  const parseAvailabilityRecap = (
+    recap?: string | null
+  ): AvailabilityData | null => {
+    if (!recap) return null;
+    const rows: WeeklyAvailabilityRow[] = AVAILABILITY_SLOTS.map((slot) => ({
+      slot,
+      days: AVAILABILITY_DAYS.map((day) => ({ day, isAvailable: false })),
+    }));
+
+    recap.split("\n").forEach((line) => {
+      const [dayPart, rest] = line.split(":");
+      if (!dayPart || !rest) return;
+      const normalizedDay = dayPart.trim().toLowerCase();
+      const day = AVAILABILITY_DAYS.find((d) =>
+        d.label.toLowerCase().startsWith(normalizedDay.slice(0, 3))
+      );
+      if (!day) return;
+      const slotStatuses = rest.split(",").map((p) => p.trim().toLowerCase());
+      slotStatuses.forEach((part) => {
+        AVAILABILITY_SLOTS.forEach((slot, idx) => {
+          if (part.startsWith(slot.label.toLowerCase())) {
+            const isAvailable = part.includes("si");
+            const row = rows[idx];
+            const idxDay = row.days.findIndex((d) => d.day.key === day.key);
+            if (idxDay >= 0) {
+              row.days[idxDay] = { day, isAvailable };
+            }
+          }
+        });
+      });
+    });
+
+    const availabilitySummary = rows
+      .map((row) => ({
+        slot: row.slot,
+        days: row.days.filter((d) => d.isAvailable).map((d) => d.day),
+      }))
+      .filter((i) => i.days.length);
+
+    const hasAnyAvailability = rows.some((row) =>
+      row.days.some((d) => d.isAvailable)
+    );
+
+    return {
+      matchValue: null,
+      weeklyAvailability: rows,
+      availabilitySummary,
+      availabilityDays: AVAILABILITY_DAYS,
+      hasAnyAvailability,
+      availabilityRecap: recap,
+    };
+  };
+
   const renderAvailabilityGrid = (
     availability: AvailabilityData | null | undefined
   ): ReactNode => {
@@ -297,7 +366,9 @@ export function AiProfilerPanel({
                 gridTemplateColumns: `120px repeat(${availability.availabilityDays.length}, minmax(0, 1fr))`,
               }}
             >
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"></div>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Fascia
+              </div>
               {availability.availabilityDays.map((day) => (
                 <div
                   key={day.key}
@@ -373,6 +444,11 @@ export function AiProfilerPanel({
                 >
                   {decisionConfig.label}
                 </span>
+                {typeof data.score === "number" && (
+                  <Badge variant="secondary" className="text-xs">
+                    Score: {data.score}
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-foreground mt-2 whitespace-pre-line">
                 {data.reason}
@@ -390,7 +466,8 @@ export function AiProfilerPanel({
                   const contextSections = contextByArea[key] ?? [];
                   const supplemental = supplementalSections?.[key] ?? [];
                   const showAvailability =
-                    key === "disponibilita" && availabilityData;
+                    key === "disponibilita" &&
+                    (availabilityData || data?.context?.disponibilita);
                   const allowedTitles = AREA_CONTENT_RULES[key];
                   const AreaIcon = AREA_ICONS[key] ?? DEFAULT_AREA_ICON;
                   const highlightTitle = HIGHLIGHT_SECTIONS[key];
@@ -453,10 +530,39 @@ export function AiProfilerPanel({
                   });
 
                   if (showAvailability) {
+                    const availabilityFromContext = parseAvailabilityRecap(
+                      (data?.context as any)?.disponibilita
+                        ?.disponibilita_settimanale_recap as
+                        | string
+                        | undefined
+                    );
+                    const availabilityToRender =
+                      availabilityData || availabilityFromContext;
                     addAccordionItem(
                       "Fascia",
-                      renderAvailabilityGrid(availabilityData)
+                      renderAvailabilityGrid(availabilityToRender)
                     );
+                  }
+
+                  if (key === "travel_time" && data?.context?.travel_time) {
+                    const travel = data.context.travel_time as Record<
+                      string,
+                      unknown
+                    >;
+                    const indirizzi = [
+                      travel.indirizzo_lavoratore_formattato,
+                      travel.indirizzo_famiglia_formattato,
+                    ]
+                      .filter(Boolean)
+                      .join("\n");
+                    if (indirizzi) {
+                      addAccordionItem(
+                        "Indirizzi",
+                        <div className="text-sm whitespace-pre-line">
+                          {indirizzi}
+                        </div>
+                      );
+                    }
                   }
 
                   if (!highlightContent && accordionItems.length === 0)
@@ -477,16 +583,18 @@ export function AiProfilerPanel({
                               {formatLabel(key)}
                             </span>
                           </div>
-                          <Badge
-                            variant="outline"
-                            className={`${style.badgeClass} border`}
-                          >
-                            {detail.rating === "alto"
-                              ? "Alto"
-                              : detail.rating === "medio"
-                              ? "Medio"
-                              : "Basso"}
-                          </Badge>
+                          {!(key === "referenze" && detail.rating !== "alto") && (
+                            <Badge
+                              variant="outline"
+                              className={`${style.badgeClass} border`}
+                            >
+                              {detail.rating === "alto"
+                                ? "Alto"
+                                : detail.rating === "medio"
+                                ? "Medio"
+                                : "Basso"}
+                            </Badge>
+                          )}
                         </div>
                         {highlightContent && highlightTitle && (
                           <div className="space-y-1 rounded-md border border-border/60 bg-muted/30 p-3">

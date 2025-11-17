@@ -1,11 +1,5 @@
-import {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-  Fragment,
-} from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -17,70 +11,22 @@ import {
   type RecruiterProcessSummary,
   type ProcessoInfo,
   type WorkerSelection,
+  type Lavoratore,
 } from "@/services/airtable";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  CheckCircle,
-  XCircle,
-  Briefcase,
-  MapPin,
-  LogOut,
-  RefreshCw,
-  FileText,
-  AlertCircle,
-  Navigation,
-  Clock,
-  Calendar,
-  Menu,
-  List,
-  Loader2,
-  Check,
-  Search,
-  Star,
-  Skull,
-} from "lucide-react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import ReactMarkdown from "react-markdown";
 import { SourceDataDrawer } from "@/components/SourceDataDrawer";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import bazeLogo from "@/assets/baze-swipe.png";
+import { JobInfoCard } from "@/components/recruiting/JobInfoCard";
+import { WorkerProfileCard } from "@/components/recruiting/WorkerProfileCard";
+import { DecisionBar } from "@/components/recruiting/DecisionBar";
+import { RecruiterSidebar } from "@/components/recruiting/RecruiterSidebar";
+import { RecruitingHeader } from "@/components/recruiting/RecruitingHeader";
+import { FeedbackIssueDialog } from "@/components/recruiting/FeedbackIssueDialog";
+import { WorkerSelectionsSheet } from "@/components/recruiting/WorkerSelectionsSheet";
+import { RecruiterFeedbackCard } from "@/components/recruiting/RecruiterFeedbackCard";
+import { RecruitingLoadingState } from "@/components/recruiting/RecruitingLoadingState";
+import { RecruitingEmptyState } from "@/components/recruiting/RecruitingEmptyState";
+import { DecisionOverrideDialog } from "@/components/recruiting/DecisionOverrideDialog";
+import type { AiProfilerResponse } from "@/types/ai-profiler";
 
 const AVAILABILITY_DAYS = [
   { key: "lunedi", label: "Lunedì", shortLabel: "Lun" },
@@ -119,75 +65,39 @@ const parseTravelTimeValue = (value: string | null): number => {
   const numeric = Number(textValue.replace(/[^\d.]/g, ""));
   return Number.isFinite(numeric) ? numeric : Number.POSITIVE_INFINITY;
 };
-interface Lavoratore {
-  id: string;
-  nome: string;
-  eta: number | null;
-  foto_url: string | null;
-  travel_time: string | null;
-  travel_time_tra_cap: string | null;
-  travel_time_flag: string | null;
-  anni_esperienza_colf: number | null;
-  anni_esperienza_babysitter: number | null;
-  anni_esperienza_badante: number | null;
-  descrizione_personale: string | null;
-  descrizione_ricerca_lavoro: string | null;
-  riassunto_esperienze_completo: string | null;
-  mansioni_esperienze?: string[];
-  feedback_ai: string | null;
-  processo: string | null;
-  processo_res: string | null;
-  email_processo_res_famiglia: string | null;
-  annuncio_luogo_riferimento_pubblico: string | null;
-  annuncio_orario_di_lavoro: string | null;
-  annuncio_nucleo_famigliare: string | null;
-  mansioni_richieste_transformed_ai: string | null;
-  mansioni_richieste: string | null;
-  chi_sono: string | null;
-  riassunto_profilo_breve: string | null;
-  intervista_llm_transcript_history: string | null;
-  descrizione_ricerca_famiglia: string | null;
-  rating: string | null;
-  documenti_in_regola_lavoratore: string | null;
-  stati_verifica_documento: string | null;
-  job_id: string | null;
-  status: string;
-  stato_selezione: string | null;
-  stato_processo_res: string | null;
-  disponibilita_lunedi_mattina_lavoratore: boolean;
-  disponibilita_lunedi_pomeriggio_lavoratore: boolean;
-  disponibilita_lunedi_sera_lavoratore: boolean;
-  disponibilita_martedi_mattina_lavoratore: boolean;
-  disponibilita_martedi_pomeriggio_lavoratore: boolean;
-  disponibilita_martedi_sera_lavoratore: boolean;
-  disponibilita_mercoledi_mattina_lavoratore: boolean;
-  disponibilita_mercoledi_pomeriggio_lavoratore: boolean;
-  disponibilita_mercoledi_sera_lavoratore: boolean;
-  disponibilita_giovedi_mattina_lavoratore: boolean;
-  disponibilita_giovedi_pomeriggio_lavoratore: boolean;
-  disponibilita_giovedi_sera_lavoratore: boolean;
-  disponibilita_venerdi_mattina_lavoratore: boolean;
-  disponibilita_venerdi_pomeriggio_lavoratore: boolean;
-  disponibilita_venerdi_sera_lavoratore: boolean;
-  disponibilita_sabato_mattina_lavoratore: boolean;
-  disponibilita_sabato_pomeriggio_lavoratore: boolean;
-  disponibilita_sabato_sera_lavoratore: boolean;
-  disponibilita_domenica_mattina_lavoratore: boolean;
-  disponibilita_domenica_pomeriggio_lavoratore: boolean;
-  disponibilita_domenica_sera_lavoratore: boolean;
-  match_disponibilità_famiglia_lavoratore: string | null;
-  disponibilità_settimanale_recap: string | null;
-  feedback_recruiter: string | null;
-  indirizzo_lavoratore: string | null;
-  indirizzo_famiglia: string | null;
-  lavoratore_record_id: string | null;
-  lavoratore_record_field: string | null;
+type OverrideContext = {
+  worker: Lavoratore;
+  workerIndex: number;
+  aiDecision: "pass" | "no_pass";
+  recruiterDecision: "pass" | "no_pass";
+};
+interface AiProfilerCacheEntry {
+  data?: AiProfilerResponse | null;
+  error?: string;
 }
+
+const getAiProfilerKey = (
+  workerId?: string | null,
+  processoResId?: string | null
+) => {
+  if (!workerId) return null;
+  return `${workerId}-${processoResId ?? "no-process"}`;
+};
+
+const getWorkerIdentifier = (worker?: Lavoratore | null) => {
+  if (!worker) return null;
+  const customId = worker.lavoratore_record_id;
+  if (typeof customId === "string" && customId.trim().length > 0) {
+    return customId.trim();
+  }
+  return worker.id ?? null;
+};
+
 const Recruiting = () => {
   const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<Session["user"] | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [recruiters, setRecruiters] = useState<RecruiterProcessSummary[]>([]);
   const [selectedRecruiterId, setSelectedRecruiterId] = useState<string>("");
@@ -206,11 +116,23 @@ const Recruiting = () => {
     []
   );
   const [workerSelectionsLoading, setWorkerSelectionsLoading] = useState(false);
+  const [supabaseSession, setSupabaseSession] = useState<Session | null>(null);
+  const [aiProfilerCache, setAiProfilerCache] = useState<
+    Record<string, AiProfilerCacheEntry>
+  >({});
+  const [aiProfilerLoadingKey, setAiProfilerLoadingKey] = useState<
+    string | null
+  >(null);
   const [ratingUpdating, setRatingUpdating] = useState(false);
   const navigate = useNavigate();
   const selectedRecruiterIdRef = useRef<string>("");
   const selectedProcessoRef = useRef<string>("");
   const { toast } = useToast();
+  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideContext, setOverrideContext] =
+    useState<OverrideContext | null>(null);
+  const [overrideSubmitting, setOverrideSubmitting] = useState(false);
 
   const selectedRecruiter = useMemo(
     () => recruiters.find((recruiter) => recruiter.id === selectedRecruiterId),
@@ -238,39 +160,165 @@ const Recruiting = () => {
       setCurrentPhotoUrl(null);
     }
   }, [currentIndex, lavoratori]);
-  const cleanFeedbackText = (text: any) => {
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSupabaseSession(session);
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const worker = lavoratori[currentIndex];
+    if (!worker) return;
+
+    const workerId = getWorkerIdentifier(worker);
+    const processoResId = worker.processo_res;
+
+    if (!workerId) {
+      setAiProfilerCache((prev) => ({
+        ...prev,
+        [`missing-${worker.id}`]: {
+          error: "Worker ID mancante per questa candidata",
+        },
+      }));
+      return;
+    }
+
+    const cacheKey = getAiProfilerKey(workerId, processoResId);
+
+    if (!cacheKey || aiProfilerCache[cacheKey]) {
+      return;
+    }
+
+    if (!processoResId) {
+      setAiProfilerCache((prev) => ({
+        ...prev,
+        [cacheKey]: {
+          error: "Nessun processo RES associato alla candidata",
+        },
+      }));
+      return;
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      setAiProfilerCache((prev) => ({
+        ...prev,
+        [cacheKey]: {
+          error:
+            "Variabili di configurazione Supabase mancanti. Verifica il file .env",
+        },
+      }));
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchProfiler = async () => {
+      try {
+        setAiProfilerLoadingKey(cacheKey);
+        const authToken = supabaseSession?.access_token || supabaseKey;
+        const response = await fetch(
+          `${supabaseUrl.replace(
+            /\/$/,
+            ""
+          )}/functions/v1/AI-profiler/ai/esperienze`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: supabaseKey,
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              worker_id: workerId,
+              processo_res_id: processoResId,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Errore API (${response.status})`);
+        }
+
+        const data: AiProfilerResponse = await response.json();
+        if (isCancelled) return;
+
+        setAiProfilerCache((prev) => ({
+          ...prev,
+          [cacheKey]: { data },
+        }));
+      } catch (error) {
+        if (isCancelled) return;
+        console.error("Errore AI profiler:", error);
+        setAiProfilerCache((prev) => ({
+          ...prev,
+          [cacheKey]: {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Errore sconosciuto nel profiler",
+          },
+        }));
+      } finally {
+        if (!isCancelled) {
+          setAiProfilerLoadingKey((prev) => (prev === cacheKey ? null : prev));
+        }
+      }
+    };
+
+    fetchProfiler();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [aiProfilerCache, currentIndex, lavoratori, supabaseSession]);
+  const cleanFeedbackText = (input: unknown) => {
     // Handle non-string values
-    if (!text) return "";
-    if (typeof text !== "string") {
+    if (input === null || input === undefined) return "";
+    let textValue: string;
+    if (typeof input !== "string") {
       // If it's an object, try to stringify it
-      if (typeof text === "object") {
+      if (typeof input === "object") {
         try {
-          text = JSON.stringify(text);
+          textValue = JSON.stringify(input);
         } catch {
           return "";
         }
       } else {
         // Convert to string
-        text = String(text);
+        textValue = String(input);
       }
+    } else {
+      textValue = input;
     }
 
     // Try to parse as JSON first
     try {
-      const parsed = JSON.parse(text);
+      const parsed = JSON.parse(textValue);
       if (parsed.state === "empty" || !parsed.value || parsed.value === null) {
         return "";
       }
       if (parsed.state === "generated" && parsed.value) {
-        text = parsed.value;
+        textValue = parsed.value;
       }
     } catch (e) {
       // Not JSON, continue with text cleaning
     }
 
     // Remove JSON wrapper if present (fallback)
-    let cleaned = text;
-    const jsonMatch = text.match(
+    let cleaned = textValue;
+    const jsonMatch = textValue.match(
       /\{"state":"generated","value":"(.+)","isStale":(true|false)\}/
     );
     if (jsonMatch) {
@@ -284,22 +332,25 @@ const Recruiting = () => {
     cleaned = cleaned.replace(/\\/g, "");
     return cleaned;
   };
-  const cleanExperienceText = (text: any) => {
+  const cleanExperienceText = (input: unknown) => {
     // Handle non-string values
-    if (!text) return "";
-    if (typeof text !== "string") {
-      if (typeof text === "object") {
+    if (input === null || input === undefined) return "";
+    let textValue: string;
+    if (typeof input !== "string") {
+      if (typeof input === "object") {
         try {
-          text = JSON.stringify(text);
+          textValue = JSON.stringify(input);
         } catch {
           return "";
         }
       } else {
-        text = String(text);
+        textValue = String(input);
       }
+    } else {
+      textValue = input;
     }
 
-    let cleaned = text;
+    let cleaned = textValue;
 
     // Remove array brackets at start and end
     cleaned = cleaned.replace(/^\[|\]$/g, "");
@@ -540,6 +591,7 @@ const Recruiting = () => {
       return;
     }
     setUser(session.user);
+    setSupabaseSession(session);
   }, [navigate]);
 
   const loadLavoratori = useCallback(
@@ -667,6 +719,24 @@ const Recruiting = () => {
     setLoading(true);
     setCurrentIndex(0);
   }, []);
+  const handleRecruiterSelect = useCallback(
+    (recruiterId: string) => {
+      if (recruiterId === selectedRecruiterId) {
+        setSidebarOpen(false);
+        return;
+      }
+      const recruiter = recruiters.find((r) => r.id === recruiterId);
+      if (!recruiter) return;
+      setSelectedRecruiterId(recruiterId);
+      const firstProcess = recruiter.processIds[0] ?? "";
+      setSelectedProcesso(firstProcess);
+      setLavoratori([]);
+      setLoading(true);
+      setCurrentIndex(0);
+      setSidebarOpen(false);
+    },
+    [recruiters, selectedRecruiterId]
+  );
 
   useEffect(() => {
     checkAuth();
@@ -686,42 +756,46 @@ const Recruiting = () => {
 
     loadLavoratori(selectedRecruiter, selectedProcesso);
   }, [selectedRecruiter, selectedProcesso, processoInfo, loadLavoratori]);
-  const handleDecisionClick = useCallback(
-    async (decision: "pass" | "no_pass") => {
-      const currentLavoratore = lavoratori[currentIndex];
-      if (!currentLavoratore) {
-        return;
-      }
-
+  const processDecision = useCallback(
+    async ({
+      worker,
+      workerIndex,
+      decision,
+    }: {
+      worker: Lavoratore;
+      workerIndex: number;
+      decision: "pass" | "no_pass";
+    }) => {
       const nextStatus =
         decision === "pass" ? "Da colloquiare" : "Non selezionato";
 
       try {
-        await updateCandidateSelectionStatus(currentLavoratore.id, nextStatus);
+        await updateCandidateSelectionStatus(worker.id, nextStatus);
 
         toast({
           title:
-            decision === "pass" ? "Candidata approvata" : "Candidata rifiutata",
-          description: `${currentLavoratore.nome} è stata ${
-            decision === "pass" ? "contrassegnata come pass" : "rimossa"
-          }`,
+            decision === "pass"
+              ? "Candidata accettata"
+              : "Candidata rifiutata",
+          description: `${worker.nome} è stata ${
+            decision === "pass" ? "contrassegnata come accettata" : "rifiutata"
+          }.`,
         });
 
         setWorkerSelectionsOpen(false);
         setWorkerSelections([]);
 
-        const updatedLavoratori = lavoratori.filter(
-          (_, index) => index !== currentIndex
-        );
-
-        setLavoratori(updatedLavoratori);
-        setCurrentIndex((prev) => {
-          if (updatedLavoratori.length === 0) {
-            return 0;
-          }
-          return prev >= updatedLavoratori.length
-            ? updatedLavoratori.length - 1
-            : prev;
+        setLavoratori((prev) => {
+          const updated = prev.filter((_, index) => index !== workerIndex);
+          setCurrentIndex((prevIndex) => {
+            if (updated.length === 0) {
+              return 0;
+            }
+            return prevIndex >= updated.length
+              ? updated.length - 1
+              : prevIndex;
+          });
+          return updated;
         });
       } catch (error) {
         console.error("Errore aggiornamento stato selezione:", error);
@@ -733,9 +807,160 @@ const Recruiting = () => {
               : "Impossibile aggiornare lo stato in Airtable",
           variant: "destructive",
         });
+        throw error;
       }
     },
-    [lavoratori, currentIndex, toast]
+    [
+      toast,
+      setWorkerSelectionsOpen,
+      setWorkerSelections,
+      setLavoratori,
+      setCurrentIndex,
+    ]
+  );
+
+  const sendOverrideFeedback = useCallback(
+    async (context: OverrideContext, reason: string) => {
+      const webhookUrl =
+        import.meta.env.VITE_DECISION_OVERRIDE_WEBHOOK_URL?.trim();
+      if (!webhookUrl) {
+        console.warn(
+          "DECISION_OVERRIDE_WEBHOOK non configurato. Salto l'invio feedback."
+        );
+        return;
+      }
+      const payload = {
+        Recruiter:
+          selectedRecruiterName ||
+          selectedRecruiter?.nome ||
+          "Recruiter non specificato",
+        lavoratore_id:
+          context.worker.lavoratore_record_id ??
+          context.worker.id ??
+          "ID mancante",
+        processo_res_id: context.worker.processo_res ?? "Processo non definito",
+        "AI Parser choice": context.aiDecision,
+        "Recruiter choice": context.recruiterDecision,
+        Reason: reason,
+      };
+
+      try {
+        console.log("Invio feedback decision override:", payload);
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(
+            `Webhook status ${response.status}: ${body || "no body"}`
+          );
+        }
+        console.log("Feedback decision override inviato con successo");
+      } catch (error) {
+        console.error("Errore invio feedback override AI:", error);
+        toast({
+          title: "Segnalazione non inviata",
+          description:
+            "Impossibile inviare il feedback all'AI. La decisione è stata comunque salvata.",
+          variant: "destructive",
+        });
+      }
+    },
+    [selectedRecruiterName, selectedRecruiter, toast]
+  );
+
+  const handleDecisionClick = useCallback(
+    async (decision: "pass" | "no_pass") => {
+      const worker = lavoratori[currentIndex];
+      if (!worker) {
+        return;
+      }
+
+      const workerIdentifier = getWorkerIdentifier(worker);
+      const aiKey = getAiProfilerKey(workerIdentifier, worker.processo_res);
+      const aiEntry = aiKey ? aiProfilerCache[aiKey] : undefined;
+      const aiDecision = aiEntry?.data?.decision ?? null;
+      const isOpposite =
+        aiDecision &&
+        (aiDecision === "pass" || aiDecision === "no_pass") &&
+        ((decision === "pass" && aiDecision === "no_pass") ||
+          (decision === "no_pass" && aiDecision === "pass"));
+
+      if (isOpposite && (aiDecision === "pass" || aiDecision === "no_pass")) {
+        setOverrideContext({
+          worker,
+          workerIndex: currentIndex,
+          aiDecision,
+          recruiterDecision: decision,
+        });
+        setOverrideReason("");
+        setOverrideDialogOpen(true);
+        return;
+      }
+
+      try {
+        await processDecision({
+          worker,
+          workerIndex: currentIndex,
+          decision,
+        });
+      } catch {
+        // Error already handled in processDecision
+      }
+    },
+    [lavoratori, currentIndex, aiProfilerCache, processDecision]
+  );
+
+  const handleOverrideConfirm = useCallback(async () => {
+    if (!overrideContext) return;
+    const reason = overrideReason.trim();
+    if (!reason) {
+      toast({
+        title: "Motivazione richiesta",
+        description: "Spiega brevemente perché stai annullando la decisione dell'AI.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setOverrideSubmitting(true);
+    await sendOverrideFeedback(overrideContext, reason);
+    try {
+      await processDecision({
+        worker: overrideContext.worker,
+        workerIndex: overrideContext.workerIndex,
+        decision: overrideContext.recruiterDecision,
+      });
+      setOverrideDialogOpen(false);
+      setOverrideContext(null);
+      setOverrideReason("");
+    } catch {
+      // Errore già gestito in processDecision
+    } finally {
+      setOverrideSubmitting(false);
+    }
+  }, [
+    overrideContext,
+    overrideReason,
+    processDecision,
+    sendOverrideFeedback,
+    toast,
+  ]);
+
+  const handleOverrideDialogChange = useCallback(
+    (open: boolean) => {
+      if (overrideSubmitting) return;
+      setOverrideDialogOpen(open);
+      if (!open) {
+        setOverrideContext(null);
+        setOverrideReason("");
+      }
+    },
+    [overrideSubmitting]
   );
   const handleRefreshFromAirtable = async () => {
     if (!selectedRecruiter || !selectedProcesso) {
@@ -761,6 +986,7 @@ const Recruiting = () => {
   };
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setSupabaseSession(null);
     navigate("/auth");
   };
 
@@ -768,7 +994,20 @@ const Recruiting = () => {
     const currentLavoratore = lavoratori[currentIndex];
     if (!currentLavoratore) return;
 
-    setEditedFeedback(cleanFeedbackText(currentLavoratore.feedback_ai || ""));
+    const profilerKey = getAiProfilerKey(
+      getWorkerIdentifier(currentLavoratore),
+      currentLavoratore.processo_res
+    );
+    const profilerPayload =
+      (profilerKey && aiProfilerCache[profilerKey]?.data) || null;
+    const fallbackText =
+      profilerPayload && typeof profilerPayload === "object"
+        ? JSON.stringify(profilerPayload, null, 2)
+        : currentLavoratore.feedback_ai || "";
+
+    setEditedFeedback(
+      profilerPayload ? fallbackText : cleanFeedbackText(fallbackText)
+    );
     setFeedbackIssue("");
     setShowFeedbackEdit(true);
   };
@@ -793,7 +1032,7 @@ const Recruiting = () => {
     });
 
     console.log("Issue Report (simulazione):", {
-      lavoratore_id: currentLavoratore.id,
+      lavoratore_id: getWorkerIdentifier(currentLavoratore),
       original_feedback: currentLavoratore.feedback_ai,
       corrected_feedback: editedFeedback,
       issue_description: feedbackIssue,
@@ -805,6 +1044,26 @@ const Recruiting = () => {
     setFeedbackIssue("");
   };
   const currentLavoratore = lavoratori[currentIndex];
+  const currentAiProfilerKey = getAiProfilerKey(
+    getWorkerIdentifier(currentLavoratore),
+    currentLavoratore?.processo_res
+  );
+  const currentAiProfilerEntry = currentAiProfilerKey
+    ? aiProfilerCache[currentAiProfilerKey]
+    : undefined;
+  const currentAiProfilerData = currentAiProfilerEntry?.data ?? null;
+  const currentAiProfilerError = currentAiProfilerEntry?.error ?? null;
+  const isAiProfilerLoading = currentAiProfilerKey
+    ? aiProfilerLoadingKey === currentAiProfilerKey
+    : false;
+  const handleReloadAiProfiler = useCallback(() => {
+    if (!currentAiProfilerKey) return;
+    setAiProfilerCache((prev) => {
+      const updated = { ...prev };
+      delete updated[currentAiProfilerKey];
+      return updated;
+    });
+  }, [currentAiProfilerKey]);
   const currentProcessoInfo = selectedProcesso
     ? processoInfo[selectedProcesso]
     : undefined;
@@ -953,32 +1212,28 @@ const Recruiting = () => {
     },
     [lavoratori, currentIndex, ratingUpdating, sortLavoratori, toast]
   );
+  const matchDisponibilitaText = useMemo(() => {
+    if (!currentLavoratore?.match_disponibilità_famiglia_lavoratore) {
+      return null;
+    }
+    let matchValue: unknown =
+      currentLavoratore.match_disponibilità_famiglia_lavoratore;
+    if (
+      typeof matchValue === "object" &&
+      matchValue !== null &&
+      "value" in matchValue &&
+      matchValue.value
+    ) {
+      matchValue = matchValue.value;
+    }
+    return matchValue ? String(matchValue) : null;
+  }, [currentLavoratore]);
+
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Caricamento profili...</p>
-        </div>
-      </div>
-    );
+    return <RecruitingLoadingState />;
   }
   if (!currentLavoratore) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-        <Card className="max-w-md shadow-card">
-          <CardContent className="pt-6 text-center space-y-4">
-            <div className="w-16 h-16 bg-gradient-accent rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle className="w-8 h-8 text-accent-foreground" />
-            </div>
-            <h2 className="text-2xl font-bold">Tutto Fatto!</h2>
-            <p className="text-muted-foreground">
-              Hai revisionato tutti i profili. Ottimo lavoro!
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <RecruitingEmptyState />;
   }
   const combinedFamilyAddress = [
     currentLavoratore.indirizzo_famiglia?.trim(),
@@ -987,7 +1242,7 @@ const Recruiting = () => {
     .filter(Boolean)
     .join("\n");
   const descrizioneRicercaLavoro =
-    currentLavoratore.descrizione_ricerca_lavoro?.trim();
+    currentLavoratore.descrizione_ricerca_famiglia?.trim();
   const chiSono = currentLavoratore.chi_sono?.trim();
 
   const mapDestination =
@@ -996,6 +1251,9 @@ const Recruiting = () => {
     currentProcessoInfo?.informazioni_extra_riservate?.trim() || "";
   const animalsPresenceInfo =
     currentProcessoInfo?.descrizione_animali_in_casa?.trim() || "";
+  const experienceMarkdown = currentLavoratore.riassunto_esperienze_completo
+    ? cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)
+    : null;
 
   const babysitterYearsFormatted = formatYears(
     currentLavoratore.anni_esperienza_babysitter
@@ -1029,775 +1287,99 @@ const Recruiting = () => {
     : "border-border bg-muted text-muted-foreground";
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar Drawer */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0">
-          <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-border">
-              <img src={bazeLogo} alt="Baze" className="h-8 mb-4" />
-              <h2 className="text-sm font-semibold text-muted-foreground">
-                RECRUITER
-              </h2>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {recruiters.map((recruiter) => (
-                <button
-                  key={recruiter.id}
-                  onClick={() => {
-                    if (recruiter.id === selectedRecruiterId) {
-                      setSidebarOpen(false);
-                      return;
-                    }
-                    setSelectedRecruiterId(recruiter.id);
-                    const firstProcess = recruiter.processIds[0] ?? "";
-                    setSelectedProcesso(firstProcess);
-                    setLavoratori([]);
-                    setLoading(true);
-                    setCurrentIndex(0);
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full px-4 py-3 text-left text-sm transition-colors ${
-                    selectedRecruiterId === recruiter.id
-                      ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  {recruiter.nome}
-                </button>
-              ))}
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <RecruiterSidebar
+        open={sidebarOpen}
+        onOpenChange={setSidebarOpen}
+        recruiters={recruiters}
+        selectedRecruiterId={selectedRecruiterId}
+        onSelectRecruiter={handleRecruiterSelect}
+      />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="bg-card border-b border-border">
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={() => setSidebarOpen(true)}
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-                <img src={bazeLogo} alt="Baze Swipe" className="h-8 w-8" />
-                <div>
-                  <h1 className="text-xl font-semibold text-foreground">
-                    Baze-Swipe
-                  </h1>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Profilo {currentIndex + 1} di {lavoratori.length} •{" "}
-                    {selectedRecruiterName}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2 items-center">
-                <Button
-                  onClick={handleLogout}
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RecruitingHeader
+          onOpenSidebar={() => setSidebarOpen(true)}
+          onLogout={handleLogout}
+          currentIndex={currentIndex}
+          total={lavoratori.length}
+          selectedRecruiterName={selectedRecruiterName}
+        />
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 pb-32">
+        <div className="flex-1 px-6 py-6 pb-32">
           {/* Main Layout - 3 columns */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Left: Job Info */}
-            <Card className="lg:col-span-3 border-border hover:shadow-[var(--shadow-hover)] transition-shadow">
-              <CardContent className="p-5 space-y-4">
-                <h2 className="text-base font-semibold text-foreground mb-4">
-                  Ricerca attiva
-                </h2>
-
-                <div className="space-y-3">
-                  <div>
-                    <Select
-                      value={selectedProcesso || "no-processes"}
-                      onValueChange={handleProcessSelect}
-                    >
-                      <SelectTrigger className="w-full mt-1">
-                        <SelectValue placeholder="Seleziona processo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {processOptions.length === 0 ? (
-                          <SelectItem value="no-processes" disabled>
-                            Nessun processo disponibile
-                          </SelectItem>
-                        ) : (
-                          processOptions.map((processo) => {
-                            const info = processoInfo[processo];
-                            const displayText = info
-                              ? `${info.tipo_lavoro || ""} ${
-                                  info.tipo_rapporto || ""
-                                } ${info.momento_giornata || ""} | ${
-                                  info.email_famiglia || ""
-                                }`.trim()
-                              : processo;
-                            return (
-                              <SelectItem key={processo} value={processo}>
-                                {displayText}
-                              </SelectItem>
-                            );
-                          })
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {currentLavoratore.annuncio_luogo_riferimento_pubblico && (
-                    <div>
-                      <label className="text-xs font-semibold text-primary">
-                        ZONA
-                      </label>
-                      <p className="mt-1 text-xs">
-                        {currentLavoratore.annuncio_luogo_riferimento_pubblico}
-                      </p>
-                    </div>
-                  )}
-
-                  {currentLavoratore.annuncio_orario_di_lavoro && (
-                    <div>
-                      <label className="text-xs font-semibold text-primary">
-                        ORARI
-                      </label>
-                      <p className="mt-1 text-xs">
-                        {currentLavoratore.annuncio_orario_di_lavoro}
-                      </p>
-                    </div>
-                  )}
-
-                  {currentLavoratore.annuncio_nucleo_famigliare && (
-                    <div>
-                      <label className="text-xs font-semibold text-primary">
-                        FAMIGLIA
-                      </label>
-                      <p className="mt-1 text-xs">
-                        {currentLavoratore.annuncio_nucleo_famigliare}
-                      </p>
-                    </div>
-                  )}
-
-                  {mapDestination && (
-                    <div>
-                      <label className="text-xs font-semibold text-primary">
-                        INDIRIZZO
-                      </label>
-                      <p className="mt-1 text-xs whitespace-pre-line">
-                        {combinedFamilyAddress || mapDestination}
-                      </p>
-                    </div>
-                  )}
-
-                  {extraReservedInfo && (
-                    <div>
-                      <label className="text-xs font-semibold text-primary">
-                        INFO AGGIUNTIVE
-                      </label>
-                      <p className="mt-1 text-xs whitespace-pre-line">
-                        {extraReservedInfo}
-                      </p>
-                    </div>
-                  )}
-
-                  {animalsPresenceInfo && (
-                    <div>
-                      <label className="text-xs font-semibold text-primary">
-                        PRESENZA ANIMALI
-                      </label>
-                      <p className="mt-1 text-xs whitespace-pre-line">
-                        {animalsPresenceInfo}
-                      </p>
-                    </div>
-                  )}
-
-                  {currentLavoratore.mansioni_richieste && (
-                    <div>
-                      <label className="text-xs font-semibold text-primary">
-                        MANSIONI
-                      </label>
-                      <p className="mt-1 whitespace-pre-line text-xs">
-                        {currentLavoratore.mansioni_richieste}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="lg:col-span-3">
+              <div className="lg:sticky lg:top-6 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
+                <JobInfoCard
+                  className="lg:h-full"
+                  selectedProcesso={selectedProcesso}
+                  processOptions={processOptions}
+                  processoInfo={processoInfo}
+                  annuncioZona={currentLavoratore.annuncio_luogo_riferimento_pubblico}
+                  annuncioOrario={currentLavoratore.annuncio_orario_di_lavoro}
+                  annuncioFamiglia={currentLavoratore.annuncio_nucleo_famigliare}
+                  mansioniRichieste={currentLavoratore.mansioni_richieste}
+                  combinedFamilyAddress={combinedFamilyAddress}
+                  mapDestination={mapDestination}
+                  extraReservedInfo={extraReservedInfo}
+                  animalsPresenceInfo={animalsPresenceInfo}
+                  onSelectProcess={handleProcessSelect}
+                />
+              </div>
+            </div>
 
             {/* Center: Candidate Profile */}
-            <Card className="lg:col-span-6 border-border hover:shadow-[var(--shadow-hover)] transition-shadow">
-              <CardContent className="p-6 space-y-5">
-                {/* Header with photo, name and status */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-4 flex-1">
-                    {currentPhotoUrl && (
-                      <img
-                        src={currentPhotoUrl}
-                        alt={currentLavoratore.nome}
-                        className="w-20 h-20 rounded-full object-cover border-2 border-border"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-2xl font-semibold text-foreground">
-                          {currentLavoratore.nome}
-                        </h2>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            disabled={ratingButtonsDisabled}
-                            onClick={() => handleRatingUpdate("star")}
-                            className={`h-8 w-8 border transition-colors ${
-                              isStarred
-                                ? "border-amber-200 bg-amber-50 text-amber-500"
-                                : "border-transparent text-muted-foreground hover:text-amber-500"
-                            }`}
-                            aria-label={
-                              isStarred
-                                ? "Rimuovi dai preferiti"
-                                : "Segna come preferito"
-                            }
-                          >
-                            <Star
-                              className="h-4 w-4"
-                              fill={isStarred ? "currentColor" : "none"}
-                            />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            disabled={ratingButtonsDisabled}
-                            onClick={() => handleRatingUpdate("blacklist")}
-                            className="h-8 w-8 border border-transparent text-muted-foreground hover:text-destructive"
-                            aria-label="Nascondi definitivamente il profilo"
-                          >
-                            <Skull className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="mt-1">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "items-center gap-1 px-3 py-1 text-xs font-medium",
-                            documentsBadgeClass
-                          )}
-                        >
-                          {documentsBadgeLabel}
-                          {hasDocumentsInRegola &&
-                            (documentsApproved ? (
-                              <Check className="h-3.5 w-3.5 text-green-600" aria-hidden />
-                            ) : (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Search
-                                    className="h-3.5 w-3.5 cursor-help text-blue-600"
-                                    aria-hidden
-                                  />
-                                </TooltipTrigger>
-                                <TooltipContent sideOffset={6} className="px-2 py-1 text-xs">
-                                  Da verificare
-                                </TooltipContent>
-                              </Tooltip>
-                            ))}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                        {currentLavoratore.eta && (
-                          <span>{currentLavoratore.eta} anni</span>
-                        )}
-                      </div>
-                      {currentLavoratore.lavoratore_record_id && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          ID: {currentLavoratore.lavoratore_record_id}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2 items-end">
-                    {currentLavoratore.stato_selezione && (
-                      <div className="px-3 py-1.5 bg-accent text-accent-foreground rounded-md text-xs font-medium whitespace-nowrap">
-                        {currentLavoratore.stato_selezione}
-                      </div>
-                    )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-1 text-xs"
-                      onClick={handleOpenWorkerSelections}
-                    >
-                      <List className="w-3 h-3" />
-                      Altre selezioni
-                    </Button>
-                  </div>
-                </div>
+            <WorkerProfileCard
+              className="lg:col-span-6"
+              lavoratore={currentLavoratore}
+              photoUrl={currentPhotoUrl}
+              descrizioneRicercaLavoro={descrizioneRicercaLavoro}
+              chiSono={chiSono}
+              babysitterYearsFormatted={babysitterYearsFormatted}
+              badanteYearsFormatted={badanteYearsFormatted}
+              documentsBadgeLabel={documentsBadgeLabel}
+              documentsBadgeClass={documentsBadgeClass}
+              hasDocumentsInRegola={hasDocumentsInRegola}
+              documentsApproved={documentsApproved}
+              ratingButtonsDisabled={ratingButtonsDisabled}
+              isStarred={isStarred}
+              onRatingUpdate={handleRatingUpdate}
+              onOpenWorkerSelections={handleOpenWorkerSelections}
+              experienceMarkdown={experienceMarkdown}
+              workerAvailability={{
+                matchValue: matchDisponibilitaText,
+                weeklyAvailability,
+                availabilitySummary,
+                availabilityDays: AVAILABILITY_DAYS,
+                hasAnyAvailability,
+                availabilityRecap:
+                  currentLavoratore.disponibilità_settimanale_recap || null,
+              }}
+              aiProfiler={{
+                data: currentAiProfilerData,
+                error: currentAiProfilerError,
+                isLoading: isAiProfilerLoading,
+                legacyFeedback: currentLavoratore.feedback_ai
+                  ? cleanFeedbackText(currentLavoratore.feedback_ai)
+                  : undefined,
+                onReportIssue: handleReportFeedbackIssue,
+                onShowSourceData: () => setShowSourceData(true),
+                onReload: handleReloadAiProfiler,
+              }}
+            />
 
-                {(descrizioneRicercaLavoro || chiSono) && (
-                  <div className="space-y-3">
-                    {descrizioneRicercaLavoro && (
-                      <p className="text-xs text-muted-foreground whitespace-pre-line">
-                        {descrizioneRicercaLavoro}
-                      </p>
-                    )}
-                    {chiSono && (
-                      <p className="text-xs text-muted-foreground whitespace-pre-line">
-                        {chiSono}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Info boxes - Distanza, Esperienza, Disponibilità */}
-                <div className="space-y-3">
-                  {/* Distanza */}
-                  <div
-                    className={`rounded-lg p-3 border ${
-                      !currentLavoratore.travel_time_tra_cap ||
-                      currentLavoratore.travel_time_tra_cap === "0" ||
-                      currentLavoratore.travel_time_flag === "green"
-                        ? "bg-green-50 border-green-200"
-                        : currentLavoratore.travel_time_flag === "yellow"
-                        ? "bg-yellow-50 border-yellow-200"
-                        : "bg-red-50 border-red-200"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <Navigation
-                          className={`w-4 h-4 ${
-                            !currentLavoratore.travel_time_tra_cap ||
-                            currentLavoratore.travel_time_tra_cap === "0" ||
-                            currentLavoratore.travel_time_flag === "green"
-                              ? "text-green-600"
-                              : currentLavoratore.travel_time_flag === "yellow"
-                              ? "text-yellow-600"
-                              : "text-red-600"
-                          }`}
-                        />
-                        <span className="text-xs font-semibold text-muted-foreground uppercase">
-                          Distanza
-                        </span>
-                      </div>
-                      {currentLavoratore.indirizzo_lavoratore &&
-                        mapDestination && (
-                          <a
-                            href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-                              currentLavoratore.indirizzo_lavoratore || ""
-                            )}&destination=${encodeURIComponent(
-                              mapDestination
-                            )}&travelmode=transit`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:opacity-70 transition-opacity"
-                          >
-                            <MapPin className="w-4 h-4 text-muted-foreground" />
-                          </a>
-                        )}
-                    </div>
-                    <p
-                      className={`text-sm font-medium ${
-                        !currentLavoratore.travel_time_tra_cap ||
-                        currentLavoratore.travel_time_tra_cap === "0" ||
-                        currentLavoratore.travel_time_flag === "green"
-                          ? "text-green-700"
-                          : currentLavoratore.travel_time_flag === "yellow"
-                          ? "text-yellow-700"
-                          : "text-red-700"
-                      }`}
-                    >
-                      {Math.floor(
-                        parseFloat(currentLavoratore.travel_time_tra_cap || "0")
-                      )}{" "}
-                      minuti
-                    </p>
-                  </div>
-
-                  {/* Anni di esperienza */}
-                  {currentLavoratore.anni_esperienza_colf !== null && (
-                    <div
-                      className={`rounded-lg p-3 border ${
-                        currentLavoratore.anni_esperienza_colf > 8
-                          ? "bg-green-50 border-green-200"
-                          : currentLavoratore.anni_esperienza_colf >= 3
-                          ? "bg-yellow-50 border-yellow-200"
-                          : "bg-red-50 border-red-200"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <Clock
-                          className={`w-4 h-4 ${
-                            currentLavoratore.anni_esperienza_colf > 8
-                              ? "text-green-600"
-                              : currentLavoratore.anni_esperienza_colf >= 3
-                              ? "text-yellow-600"
-                              : "text-red-600"
-                          }`}
-                        />
-                        <span className="text-xs font-semibold text-muted-foreground uppercase">
-                          Esperienza
-                        </span>
-                      </div>
-                      <div className="flex items-start justify-between gap-4">
-                        <p
-                          className={`text-sm font-medium ${
-                            currentLavoratore.anni_esperienza_colf > 8
-                              ? "text-green-700"
-                              : currentLavoratore.anni_esperienza_colf >= 3
-                              ? "text-yellow-700"
-                              : "text-red-700"
-                          }`}
-                        >
-                          {" "}
-                          Colf: {currentLavoratore.anni_esperienza_colf}{" "}
-                          {currentLavoratore.anni_esperienza_colf === 1
-                            ? "anno"
-                            : "anni"}
-                        </p>
-                        {(babysitterYearsFormatted ||
-                          badanteYearsFormatted) && (
-                          <div className="text-xs text-muted-foreground text-right space-y-1">
-                            {babysitterYearsFormatted && (
-                              <div>Babysitter: {babysitterYearsFormatted}</div>
-                            )}
-                            {badanteYearsFormatted && (
-                              <div>Badante: {badanteYearsFormatted}</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Mansioni tag list */}
-                      {currentLavoratore.mansioni_esperienze &&
-                        currentLavoratore.mansioni_esperienze.length > 0 &&
-                        (() => {
-                          const uniqueMansioni = Array.from(
-                            new Set(
-                              currentLavoratore.mansioni_esperienze
-                                .map((mansione) =>
-                                  typeof mansione === "string"
-                                    ? mansione.trim()
-                                    : String(mansione).trim()
-                                )
-                                .filter(Boolean)
-                            )
-                          );
-                          if (uniqueMansioni.length === 0) return null;
-
-                          return (
-                            <div className="mt-3">
-                              <div className="flex flex-wrap gap-2">
-                                {uniqueMansioni.map((mansione) => (
-                                  <span
-                                    key={mansione}
-                                    className="inline-flex items-center rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-medium"
-                                  >
-                                    {mansione}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                      {/* Accordion for detailed experience */}
-                      {(currentLavoratore.mansioni_esperienze?.length > 0 ||
-                        currentLavoratore.riassunto_esperienze_completo) && (
-                        <Accordion type="single" collapsible className="mt-3">
-                          <AccordionItem
-                            value="experience"
-                            className="border-0"
-                          >
-                            <AccordionTrigger className="py-2 hover:no-underline">
-                              <div className="flex items-center gap-2">
-                                <Briefcase className="w-4 h-4" />
-                                <span className="text-xs font-medium">
-                                  Vedi dettaglio esperienze
-                                </span>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent>
-                              {currentLavoratore.riassunto_esperienze_completo && (
-                                <div className="mt-2 p-3 bg-background/50 rounded border text-xs prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
-                                  <ReactMarkdown>
-                                    {cleanExperienceText(
-                                      currentLavoratore.riassunto_esperienze_completo
-                                    )}
-                                  </ReactMarkdown>
-                                </div>
-                              )}
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Match Disponibilità */}
-                  {currentLavoratore.match_disponibilità_famiglia_lavoratore &&
-                    (() => {
-                      // Extract value if it's an object with value property
-                      let matchValue: any =
-                        currentLavoratore.match_disponibilità_famiglia_lavoratore;
-                      if (
-                        matchValue &&
-                        typeof matchValue === "object" &&
-                        "value" in matchValue &&
-                        matchValue.value
-                      ) {
-                        matchValue = matchValue.value;
-                      }
-
-                      if (!matchValue) return null;
-
-                      const matchText = String(matchValue);
-                      const lowerText = matchText.toLowerCase();
-                      const isComplete = lowerText.includes(
-                        "corrisponde completamente"
-                      );
-                      const isPartial = lowerText.includes(
-                        "corrisponde parzialmente"
-                      );
-                      const isNoMatch = lowerText.includes("non corrisponde");
-
-                      const colorClass = isComplete
-                        ? "bg-green-50 border-green-200"
-                        : isNoMatch
-                        ? "bg-red-50 border-red-200"
-                        : isPartial
-                        ? "bg-yellow-50 border-yellow-200"
-                        : "bg-gray-50 border-gray-200";
-
-                      const iconColorClass = isComplete
-                        ? "text-green-600"
-                        : isNoMatch
-                        ? "text-red-600"
-                        : isPartial
-                        ? "text-yellow-600"
-                        : "text-gray-600";
-
-                      const textColorClass = isComplete
-                        ? "text-green-700"
-                        : isNoMatch
-                        ? "text-red-700"
-                        : isPartial
-                        ? "text-yellow-700"
-                        : "text-gray-700";
-
-                      return (
-                        <div className={`rounded-lg p-3 border ${colorClass}`}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <CheckCircle
-                              className={`w-4 h-4 ${iconColorClass}`}
-                            />
-                            <span className="text-xs font-semibold text-muted-foreground uppercase">
-                              Disponibilità
-                            </span>
-                          </div>
-                          <p
-                            className={`text-sm font-medium ${textColorClass}`}
-                          >
-                            {matchText}
-                          </p>
-
-                          <div className="mt-3 space-y-3">
-                            {hasAnyAvailability ? (
-                              <div className="space-y-1 text-xs text-muted-foreground">
-                                {availabilitySummary.map(({ slot, days }) => (
-                                  <div key={slot.key}>
-                                    <span className="font-medium text-foreground"></span>{" "}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">
-                                Nessuna disponibilità indicata nelle fasce
-                                orarie.
-                              </p>
-                            )}
-
-                            <div className="rounded-lg border border-border bg-background/60">
-                              <div className="overflow-x-auto">
-                                <div className="min-w-[520px] p-3">
-                                  <div
-                                    className="grid gap-2"
-                                    style={{
-                                      gridTemplateColumns: `120px repeat(${AVAILABILITY_DAYS.length}, minmax(0, 1fr))`,
-                                    }}
-                                  >
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                      Fascia
-                                    </div>
-                                    {AVAILABILITY_DAYS.map((day) => (
-                                      <div
-                                        key={day.key}
-                                        className="text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
-                                      >
-                                        {day.shortLabel}
-                                      </div>
-                                    ))}
-                                    {weeklyAvailability.map(
-                                      ({ slot, days }) => (
-                                        <Fragment key={slot.key}>
-                                          <div className="text-xs font-semibold text-muted-foreground">
-                                            {slot.label}
-                                          </div>
-                                          {days.map(({ day, isAvailable }) => (
-                                            <div
-                                              key={`${slot.key}-${day.key}`}
-                                              className={`rounded-md border px-2 py-1 text-center text-xs font-medium transition-colors ${
-                                                isAvailable
-                                                  ? "border-green-200 bg-green-50 text-green-700"
-                                                  : "border-border bg-muted text-muted-foreground"
-                                              }`}
-                                            >
-                                              {isAvailable ? "Sì" : "No"}
-                                            </div>
-                                          ))}
-                                        </Fragment>
-                                      )
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Disponibilità - dettaglio testo Airtable */}
-                          {currentLavoratore.disponibilità_settimanale_recap && (
-                            <Accordion
-                              type="single"
-                              collapsible
-                              className="mt-3"
-                            >
-                              <AccordionItem
-                                value="calendar"
-                                className="border-0"
-                              >
-                                <AccordionTrigger className="py-2 hover:no-underline">
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="w-4 h-4" />
-                                    <span className="text-xs font-medium">
-                                      Vedi calendario disponibilità
-                                    </span>
-                                  </div>
-                                </AccordionTrigger>
-                                <AccordionContent>
-                                  <div className="mt-2 p-3 bg-background/50 rounded border text-xs">
-                                    <pre className="whitespace-pre-wrap font-mono">
-                                      {
-                                        currentLavoratore.disponibilità_settimanale_recap
-                                      }
-                                    </pre>
-                                  </div>
-                                </AccordionContent>
-                              </AccordionItem>
-                            </Accordion>
-                          )}
-                        </div>
-                      );
-                    })()}
-                </div>
-
-                {/* Feedback AI */}
-                {currentLavoratore.feedback_ai &&
-                  cleanFeedbackText(currentLavoratore.feedback_ai) && (
-                    <div className="bg-accent/50 rounded-lg p-4 border border-border">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                          Feedback AI
-                        </h3>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleReportFeedbackIssue}
-                            className="gap-1.5 h-7 text-xs text-muted-foreground border-input hover:bg-muted"
-                          >
-                            <AlertCircle className="w-3 h-3" />
-                            Segnala problemi feedback AI
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowSourceData(true)}
-                            className="gap-1.5 h-7 text-xs text-muted-foreground border-input hover:bg-muted"
-                          >
-                            <FileText className="w-3 h-3" />
-                            Fact-Check
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-strong:font-semibold">
-                        <ReactMarkdown>
-                          {cleanFeedbackText(currentLavoratore.feedback_ai)}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-              </CardContent>
-            </Card>
-
-            {/* Right: Feedback Recruiter */}
-            <Card className="lg:col-span-3 border-border hover:shadow-[var(--shadow-hover)] transition-shadow">
-              <CardContent className="p-5 space-y-4">
-                <h2 className="text-base font-semibold text-foreground mb-4">
-                  Feedback Recruiter
-                </h2>
-
-                {currentLavoratore.feedback_recruiter ? (
-                  <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-                    {currentLavoratore.feedback_recruiter}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">
-                    Nessun feedback inserito
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <div className="lg:col-span-3">
+              <div className="lg:sticky lg:top-6 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
+                <RecruiterFeedbackCard
+                  className="lg:h-full"
+                  feedback={currentLavoratore.feedback_recruiter}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Fixed Bottom Bar for Pass/No Pass */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-lg z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex gap-3 justify-center">
-            <Button
-              onClick={() => handleDecisionClick("pass")}
-              className="w-48 h-12 font-medium bg-green-600 hover:bg-green-700 text-white"
-            >
-              <CheckCircle className="w-5 h-5 mr-2" />
-              Pass
-            </Button>
-            <Button
-              onClick={() => handleDecisionClick("no_pass")}
-              variant="destructive"
-              className="w-48 h-12 font-medium"
-            >
-              <XCircle className="w-5 h-5 mr-2" />
-              No Pass
-            </Button>
-          </div>
-        </div>
-      </div>
+      <DecisionBar onDecision={handleDecisionClick} />
 
       {/* Source Data Drawer */}
       <SourceDataDrawer
@@ -1806,151 +1388,35 @@ const Recruiting = () => {
         lavoratore={currentLavoratore}
       />
 
-      <Sheet open={workerSelectionsOpen} onOpenChange={setWorkerSelectionsOpen}>
-        <SheetContent side="right" className="w-full sm:w-[420px]">
-          <SheetHeader>
-            <SheetTitle>Altre selezioni</SheetTitle>
-            <SheetDescription>
-              Processi in cui questo profilo è stato coinvolto
-            </SheetDescription>
-          </SheetHeader>
-          <div className="mt-6 space-y-3">
-            {workerSelectionsLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Caricamento selezioni...
-              </div>
-            ) : colorGroupedWorkerSelections.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nessuna altra selezione trovata per questo profilo.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {colorGroupedWorkerSelections.map(
-                  ({ colorKey, label, statuses }) => {
-                    const colorClasses = statusColorClasses[colorKey];
-                    return (
-                      <div
-                        key={colorKey}
-                        className="border border-border rounded-lg overflow-hidden"
-                      >
-                        <div
-                          className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide ${colorClasses.text}`}
-                        >
-                          {label}
-                        </div>
-                        <Accordion
-                          type="multiple"
-                          className="border-t border-border divide-y divide-border"
-                        >
-                          {statuses.map(([statusLabel, selections]) => (
-                            <AccordionItem
-                              key={`${colorKey}-${
-                                statusLabel || "Senza stato"
-                              }`}
-                              value={`${colorKey}-${
-                                statusLabel || "Senza stato"
-                              }`}
-                              className="border-none"
-                            >
-                              <AccordionTrigger className="px-3 py-2 text-sm font-semibold hover:bg-muted/50">
-                                <div className="flex items-center gap-2">
-                                  <span className={colorClasses.text}>
-                                    {statusLabel}
-                                  </span>
-                                  <span
-                                    className={`text-xs px-2 py-0.5 rounded-full ${colorClasses.badge}`}
-                                  >
-                                    {selections.length}
-                                  </span>
-                                </div>
-                              </AccordionTrigger>
-                              <AccordionContent className="px-3 pb-3 space-y-2">
-                                {selections.map((selection) => (
-                                  <div
-                                    key={selection.id}
-                                    className="bg-muted/60 border border-border rounded-lg p-3 text-sm"
-                                  >
-                                    <div className="font-medium text-foreground">
-                                      {getSelectionTitle(selection)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                      Recruiter:{" "}
-                                      {selection.recruiterId || "N/A"}
-                                    </div>
-                                  </div>
-                                ))}
-                              </AccordionContent>
-                            </AccordionItem>
-                          ))}
-                        </Accordion>
-                      </div>
-                    );
-                  }
-                )}
-              </div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+      <WorkerSelectionsSheet
+        open={workerSelectionsOpen}
+        onOpenChange={setWorkerSelectionsOpen}
+        loading={workerSelectionsLoading}
+        groupedSelections={colorGroupedWorkerSelections}
+        statusColorClasses={statusColorClasses}
+        getSelectionTitle={getSelectionTitle}
+      />
 
-      {/* Feedback Issue Dialog */}
-      <Dialog open={showFeedbackEdit} onOpenChange={setShowFeedbackEdit}>
-        <DialogContent className="max-w-2xl border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground text-xl">
-              Segnala Errore nel Feedback AI
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Modifica il feedback e descrivi l'errore trovato. Entrambi i campi
-              sono obbligatori.
-            </DialogDescription>
-          </DialogHeader>
+      <DecisionOverrideDialog
+        open={overrideDialogOpen}
+        onOpenChange={handleOverrideDialogChange}
+        aiDecision={overrideContext?.aiDecision ?? null}
+        recruiterDecision={overrideContext?.recruiterDecision ?? null}
+        reason={overrideReason}
+        onReasonChange={setOverrideReason}
+        onConfirm={handleOverrideConfirm}
+        isSubmitting={overrideSubmitting}
+      />
 
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">
-                Feedback Corretto
-              </label>
-              <Textarea
-                value={editedFeedback}
-                onChange={(e) => setEditedFeedback(e.target.value)}
-                className="min-h-[150px] resize-none border-input bg-background"
-                placeholder="Modifica il feedback AI..."
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block text-destructive">
-                Descrizione Errore *
-              </label>
-              <Textarea
-                value={feedbackIssue}
-                onChange={(e) => setFeedbackIssue(e.target.value)}
-                className="min-h-[100px] resize-none border-destructive/50 bg-background"
-                placeholder="Descrivi quale errore hai trovato nel feedback..."
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowFeedbackEdit(false)}
-              className="border-input text-muted-foreground hover:bg-muted"
-            >
-              Annulla
-            </Button>
-            <Button
-              onClick={handleSaveFeedbackIssue}
-              disabled={!feedbackIssue.trim()}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              Salva Issue
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FeedbackIssueDialog
+        open={showFeedbackEdit}
+        editedFeedback={editedFeedback}
+        feedbackIssue={feedbackIssue}
+        onOpenChange={setShowFeedbackEdit}
+        onFeedbackChange={setEditedFeedback}
+        onIssueChange={setFeedbackIssue}
+        onSave={handleSaveFeedbackIssue}
+      />
     </div>
   );
 };

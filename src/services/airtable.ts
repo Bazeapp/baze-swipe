@@ -1,6 +1,17 @@
 const AIRTABLE_API_KEY = import.meta.env.VITE_AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = import.meta.env.VITE_AIRTABLE_BASE_ID;
 
+const ensureAirtableConfig = () => {
+  if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
+    const missingKey = !AIRTABLE_API_KEY
+      ? "VITE_AIRTABLE_API_KEY"
+      : "VITE_AIRTABLE_BASE_ID";
+    throw new Error(
+      `Configurazione Airtable mancante: imposta ${missingKey} nel file .env`
+    );
+  }
+};
+
 interface AirtableRecord {
   id: string;
   fields: Record<string, any>;
@@ -94,6 +105,7 @@ async function fetchAirtableTable(
   sort?: AirtableSort[],
   fields?: string[]
 ): Promise<AirtableRecord[]> {
+  ensureAirtableConfig();
   const searchParams = new URLSearchParams();
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -147,6 +159,7 @@ async function fetchAirtableView(
   params?: Record<string, string | undefined>,
   sort?: AirtableSort[]
 ): Promise<AirtableRecord[]> {
+  ensureAirtableConfig();
   const queryParams = new URLSearchParams({ view: viewName });
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -773,6 +786,7 @@ export async function updateCandidateSelectionStatus(
   if (!recordId) {
     throw new Error('Record ID mancante');
   }
+  ensureAirtableConfig();
 
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/lavoratori_selezionati/${recordId}`;
 
@@ -804,6 +818,7 @@ export async function updateWorkerRating(
   if (!lavoratoreRecordId) {
     throw new Error('Record ID del lavoratore mancante');
   }
+  ensureAirtableConfig();
 
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/lavoratori/${lavoratoreRecordId}`;
 

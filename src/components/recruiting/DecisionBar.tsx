@@ -33,18 +33,6 @@ export function DecisionBar({
               Rifiuta
             </Button>
           </div>
-          {onStartAnalysis && (
-            <Button
-              onClick={onStartAnalysis}
-              size="lg"
-              variant="ghost"
-              className="gap-2 ml-auto"
-              disabled={startDisabled}
-            >
-              <PlayCircle className="w-5 h-5" />
-              Avvia ricerca
-            </Button>
-          )}
         </div>
       </div>
     </div>

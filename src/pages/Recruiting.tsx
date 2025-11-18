@@ -29,6 +29,7 @@ import { DecisionOverrideDialog } from "@/components/recruiting/DecisionOverride
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { AiProfilerResponse } from "@/types/ai-profiler";
+import { PlayCircle } from "lucide-react";
 
 const AVAILABILITY_DAYS = [
   { key: "lunedi", label: "Lunedì", shortLabel: "Lun" },
@@ -200,6 +201,8 @@ const Recruiting = () => {
   const [profilerStartedMap, setProfilerStartedMap] = useState<
     Record<string, boolean>
   >({});
+  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingTotal, setPendingTotal] = useState(0);
   const [hasStartedSelection, setHasStartedSelection] = useState(false);
   const navigate = useNavigate();
   const selectedRecruiterIdRef = useRef<string>("");
@@ -222,6 +225,48 @@ const Recruiting = () => {
     [selectedRecruiter]
   );
 
+  const populateProfilerPending = useCallback(
+    async (processoResId: string, workerIds: string[]) => {
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const authToken = supabaseSession?.access_token || supabaseKey;
+      if (!authToken) {
+        console.warn("Supabase auth mancante: skip populate pending");
+        return null;
+      }
+      const uniqueIds = Array.from(new Set(workerIds)).filter(Boolean);
+      if (!processoResId || uniqueIds.length === 0) {
+        return null;
+      }
+
+      const { data, error } = await supabase.functions.invoke(
+        "AI-profiler-populate/ai/profiler/pending",
+        {
+          body: {
+            processo_res_id: processoResId,
+            worker_ids: uniqueIds,
+            force: false,
+          },
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      if (error) {
+        console.error("Populate pending failed", error);
+        return null;
+      }
+
+      return data as {
+        total?: number;
+        done?: number;
+        pending?: number;
+        upserted?: number;
+      } | null;
+    },
+    [supabaseSession]
+  );
+
   const loadExistingProfilerResults = useCallback(
     async (candidates: Lavoratore[], processoResId: string) => {
       const workerIds = candidates
@@ -237,7 +282,7 @@ const Recruiting = () => {
       const { data, error } = await supa
         .from("ai_profiler_results")
         .select(
-          "worker_id,processo_res_id,raw_result,areas,reason,decision,score,version,created_at"
+          "worker_id,processo_res_id,raw_result,areas,reason,decision,score,version,created_at,status"
         )
         .eq("processo_res_id", processoResId)
         .in("worker_id", uniqueWorkerIds)
@@ -250,6 +295,7 @@ const Recruiting = () => {
       }
 
       const resultsMap: Record<string, AiProfilerCacheEntry> = {};
+      let pendingCounter = 0;
       if (data) {
         const seenWorkers = new Set<string>();
         data.forEach((row) => {
@@ -261,6 +307,16 @@ const Recruiting = () => {
           if (parsed?.data && parsed.key) {
             resultsMap[parsed.key] = { data: parsed.data };
             seenWorkers.add(workerId);
+            const rawResult = parsed.data as any;
+            const rawStatus =
+              rawResult?.status ||
+              (rawResult?.raw_result && rawResult.raw_result.status);
+            const topStatus = (row as any)?.status;
+            if (
+              String(rawStatus || topStatus || "").toLowerCase() === "pending"
+            ) {
+              pendingCounter += 1;
+            }
           }
         });
       }
@@ -269,6 +325,8 @@ const Recruiting = () => {
         setAiProfilerCache((prev) => ({ ...prev, ...resultsMap }));
         setProfilerStartedMap((prev) => ({ ...prev, [processoResId]: true }));
         setProfilerTotal(uniqueWorkerIds.length);
+        setPendingTotal(uniqueWorkerIds.length);
+        setPendingCount(pendingCounter);
         setProfilerProgress((prev) => ({
           ...prev,
           done: Object.keys(resultsMap).length,
@@ -301,6 +359,9 @@ const Recruiting = () => {
           });
           return withIndex.map((item) => item.worker);
         });
+      } else {
+        setPendingCount(0);
+        setPendingTotal(0);
       }
     },
     []
@@ -884,6 +945,28 @@ const Recruiting = () => {
         );
         console.log("[loadLavoratori] candidates length", candidates.length);
         setLavoratori(candidates);
+        const workerIds = candidates
+          .map((w) => getWorkerIdentifier(w))
+          .filter(Boolean)
+          .map((id) => String(id).trim());
+        const pendingInfo = await populateProfilerPending(
+          processoId,
+          workerIds
+        );
+        if (pendingInfo) {
+          const total = pendingInfo.total ?? candidates.length;
+          const done = pendingInfo.done ?? 0;
+          setProfilerTotal(total);
+          setPendingTotal(total);
+          setPendingCount(Math.max(total - done, 0));
+          setProfilerProgress({
+            done,
+            pending: Math.max(total - done, 0),
+            running: 0,
+            error: 0,
+            skipped: 0,
+          });
+        }
         await loadExistingProfilerResults(candidates, processoId);
       } catch (error) {
         console.error("Errore caricamento lavoratori:", error);
@@ -899,7 +982,7 @@ const Recruiting = () => {
         setLoading(false);
       }
     },
-    [processoInfo, toast, loadExistingProfilerResults]
+    [processoInfo, toast, loadExistingProfilerResults, populateProfilerPending]
   );
 
   const loadRecruiterData = useCallback(async () => {
@@ -1041,6 +1124,11 @@ const Recruiting = () => {
     setProfilerStartedMap((prev) => ({ ...prev, [selectedProcesso]: true }));
     try {
       await syncProfilerForProcess(lavoratori, selectedProcesso);
+      toast({
+        title: "Analisi completata",
+        description:
+          "Analisi profili terminata. Aggiorna la pagina per vedere gli ultimi risultati.",
+      });
     } catch (error) {
       console.error("Errore analisi profili:", error);
       setProfilerStartedMap((prev) => ({ ...prev, [selectedProcesso]: false }));
@@ -1655,6 +1743,30 @@ const Recruiting = () => {
         <div className="flex-1 px-6 py-6 pb-32 space-y-4">
           {hasStartedSelection && (
             <>
+              {pendingCount > 0 && pendingTotal > 0 && (
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="font-medium text-blue-800">
+                      Profili da analizzare
+                    </p>
+                    <p className="text-blue-700">
+                      {pendingTotal - pendingCount} su {pendingTotal}{" "}
+                      analizzati. Avvia l&apos;analisi per completare i profili
+                      pendenti.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleAnalyzeProfiles}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    disabled={profilerSyncing}
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                    Avvia analisi
+                  </Button>
+                </div>
+              )}
               {/* Main Layout - 3 columns */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-3">
@@ -1684,122 +1796,56 @@ const Recruiting = () => {
                 </div>
 
                 <div className="lg:col-span-9 flex flex-col gap-4">
-                  {showAnalyzeCard ? (
-                    <Card className="h-full border-dashed border-2 border-muted-foreground/40">
-                      <CardContent className="p-6 space-y-4">
-                        <div className="space-y-1">
-                          <p className="text-lg font-semibold">
-                            Analizza profili
-                          </p>
-                          <p className="text-sm text-muted-foreground max-w-2xl">
-                            Invia i candidati in batch da 5 verso l&apos;AI e
-                            leggi i risultati da Supabase. Puoi riavviare
-                            l&apos;analisi se necessario.
-                          </p>
-                        </div>
-                        <div className="flex flex-col gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 h-2 bg-muted rounded">
-                              <div
-                                className="h-2 bg-primary rounded"
-                                style={{
-                                  width: `${Math.min(
-                                    100,
-                                    profilerTotal
-                                      ? ((profilerProgress.done +
-                                          profilerProgress.error +
-                                          profilerProgress.skipped +
-                                          profilerProgress.running) /
-                                          profilerTotal) *
-                                          100
-                                      : 0
-                                  ).toFixed(0)}%`,
-                                }}
-                              />
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {profilerTotal > 0
-                                ? `${
-                                    profilerProgress.running
-                                  } inviati, ${Math.max(
-                                    profilerTotal -
-                                      (profilerProgress.done +
-                                        profilerProgress.error +
-                                        profilerProgress.skipped +
-                                        profilerProgress.running),
-                                    0
-                                  )} in coda`
-                                : "Pronto per l'analisi"}
-                            </div>
-                          </div>
-                          <Button
-                            onClick={handleAnalyzeProfiles}
-                            disabled={
-                              profilerSyncing ||
-                              !currentProcessoInfo ||
-                              !currentLavoratore ||
-                              profilerStartedMap[selectedProcesso]
-                            }
-                          >
-                            {profilerSyncing
-                              ? "Analisi in corso..."
-                              : "Avvia analisi"}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-9 gap-4">
-                      <WorkerProfileCard
-                        className="lg:col-span-6"
-                        lavoratore={currentLavoratore}
-                        photoUrl={currentPhotoUrl}
-                        descrizioneRicercaLavoro={descrizioneRicercaLavoro}
-                        chiSono={chiSono}
-                        babysitterYearsFormatted={babysitterYearsFormatted}
-                        badanteYearsFormatted={badanteYearsFormatted}
-                        documentsBadgeLabel={documentsBadgeLabel}
-                        documentsBadgeClass={documentsBadgeClass}
-                        hasDocumentsInRegola={hasDocumentsInRegola}
-                        documentsApproved={documentsApproved}
-                        ratingButtonsDisabled={ratingButtonsDisabled}
-                        isStarred={isStarred}
-                        onRatingUpdate={handleRatingUpdate}
-                        onOpenWorkerSelections={handleOpenWorkerSelections}
-                        experienceMarkdown={experienceMarkdown}
-                        workerAvailability={{
-                          matchValue: matchDisponibilitaText,
-                          weeklyAvailability,
-                          availabilitySummary,
-                          availabilityDays: AVAILABILITY_DAYS,
-                          hasAnyAvailability,
-                          availabilityRecap:
-                            currentLavoratore.disponibilità_settimanale_recap ||
-                            null,
-                        }}
-                        aiProfiler={{
-                          data: currentAiProfilerData,
-                          error: currentAiProfilerError,
-                          isLoading: isAiProfilerLoading,
-                          legacyFeedback: currentLavoratore.feedback_ai
-                            ? cleanFeedbackText(currentLavoratore.feedback_ai)
-                            : undefined,
-                          onReportIssue: handleReportFeedbackIssue,
-                          onShowSourceData: () => setShowSourceData(true),
-                          onReload: handleReloadAiProfiler,
-                        }}
-                      />
+                  <div className="grid grid-cols-1 lg:grid-cols-9 gap-4">
+                    <WorkerProfileCard
+                      className="lg:col-span-6"
+                      lavoratore={currentLavoratore}
+                      photoUrl={currentPhotoUrl}
+                      descrizioneRicercaLavoro={descrizioneRicercaLavoro}
+                      chiSono={chiSono}
+                      babysitterYearsFormatted={babysitterYearsFormatted}
+                      badanteYearsFormatted={badanteYearsFormatted}
+                      documentsBadgeLabel={documentsBadgeLabel}
+                      documentsBadgeClass={documentsBadgeClass}
+                      hasDocumentsInRegola={hasDocumentsInRegola}
+                      documentsApproved={documentsApproved}
+                      ratingButtonsDisabled={ratingButtonsDisabled}
+                      isStarred={isStarred}
+                      onRatingUpdate={handleRatingUpdate}
+                      onOpenWorkerSelections={handleOpenWorkerSelections}
+                      experienceMarkdown={experienceMarkdown}
+                      workerAvailability={{
+                        matchValue: matchDisponibilitaText,
+                        weeklyAvailability,
+                        availabilitySummary,
+                        availabilityDays: AVAILABILITY_DAYS,
+                        hasAnyAvailability,
+                        availabilityRecap:
+                          currentLavoratore.disponibilità_settimanale_recap ||
+                          null,
+                      }}
+                      aiProfiler={{
+                        data: currentAiProfilerData,
+                        error: currentAiProfilerError,
+                        isLoading: isAiProfilerLoading,
+                        legacyFeedback: currentLavoratore.feedback_ai
+                          ? cleanFeedbackText(currentLavoratore.feedback_ai)
+                          : undefined,
+                        onReportIssue: handleReportFeedbackIssue,
+                        onShowSourceData: () => setShowSourceData(true),
+                        onReload: handleReloadAiProfiler,
+                      }}
+                    />
 
-                      <div className="lg:col-span-3">
-                        <div className="lg:sticky lg:top-6 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
-                          <RecruiterFeedbackCard
-                            className="lg:h-full"
-                            feedback={currentLavoratore.feedback_recruiter}
-                          />
-                        </div>
+                    <div className="lg:col-span-3">
+                      <div className="lg:sticky lg:top-6 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
+                        <RecruiterFeedbackCard
+                          className="lg:h-full"
+                          feedback={currentLavoratore.feedback_recruiter}
+                        />
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             </>

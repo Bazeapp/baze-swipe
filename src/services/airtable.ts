@@ -157,7 +157,8 @@ async function fetchAirtableView(
   tableName: string,
   viewName: string,
   params?: Record<string, string | undefined>,
-  sort?: AirtableSort[]
+  sort?: AirtableSort[],
+  fields?: string[]
 ): Promise<AirtableRecord[]> {
   ensureAirtableConfig();
   const queryParams = new URLSearchParams({ view: viewName });
@@ -167,6 +168,11 @@ async function fetchAirtableView(
         queryParams.append(key, value);
       }
     }
+  }
+  if (fields) {
+    fields.forEach((field, index) => {
+      queryParams.append(`fields[${index}]`, field);
+    });
   }
   if (sort) {
     sort.forEach((item, index) => {
@@ -268,32 +274,39 @@ export async function fetchRecruiterProcesses(): Promise<{
   recruiters: RecruiterProcessSummary[];
   processoInfo: Record<string, ProcessoInfo>;
 }> {
-  const operatoriRecords = await fetchAirtableTable('operatori', undefined, undefined, ['nome', 'record_id']);
-
-  // Create a map of operatori record ID to nome
-  const operatoriIdToNome = new Map<string, string>();
-  for (const op of operatoriRecords) {
-    const nome = Array.isArray(op.fields.nome) ? op.fields.nome[0] : op.fields.nome;
-    if (nome) {
-      operatoriIdToNome.set(op.id, nome);
-    }
-  }
-
   const processoResRecords = await fetchAirtableView(
     'processo_res',
     '[🔐 No Edit] baze_swipe',
     {
       filterByFormula:
         "OR({stato_res}='fare ricerca',FIND('fare ricerca', ARRAYJOIN({stato_res}, ','))>0)",
-    }
+    },
+    undefined,
+    [
+      'nome_recruiter',
+      'tipo_lavoro',
+      'tipo_rapporto',
+      'momento_giornata',
+      'email_famiglia',
+      'informazioni_extra_riservate',
+      'descrizione_animali_in_casa',
+      'luogo_indirizzo',
+      'stato_res',
+    ]
   );
 
   const recruiterProcessMap = new Map<string, RecruiterProcessSummary>();
   const processoInfoMap = new Map<string, ProcessoInfo>();
 
   for (const processo of processoResRecords) {
-    const recruiterField = processo.fields.recruiter_ricerca_e_selezione;
-    const recruiterId = Array.isArray(recruiterField) ? recruiterField[0] : recruiterField;
+    const nomeRecruiterField = processo.fields.nome_recruiter;
+    const recruiterNome = Array.isArray(nomeRecruiterField)
+      ? nomeRecruiterField[0]
+      : nomeRecruiterField;
+    const recruiterId =
+      typeof recruiterNome === 'string'
+        ? recruiterNome.trim().toLowerCase()
+        : undefined;
     const processoId = processo.id;
     const tipoLavoro = Array.isArray(processo.fields.tipo_lavoro)
       ? processo.fields.tipo_lavoro[0]
@@ -333,11 +346,6 @@ export async function fetchRecruiterProcesses(): Promise<{
       continue;
     }
 
-    const recruiterNome = operatoriIdToNome.get(recruiterId);
-    if (!recruiterNome) {
-      continue;
-    }
-
     const processoIdentifierRaw = processo.fields.record_id_processo;
     const processoIdentifier = Array.isArray(processoIdentifierRaw)
       ? processoIdentifierRaw[0]
@@ -367,7 +375,7 @@ export async function fetchRecruiterProcesses(): Promise<{
     recruiterProcessMap.get(recruiterId)!.processIds.push(processoId);
   }
 
-  const recruiters = Array.from(recruiterProcessMap.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  const recruiters = Array.from(recruiterProcessMap.values());
 
   return {
     recruiters,
@@ -375,28 +383,14 @@ export async function fetchRecruiterProcesses(): Promise<{
   };
 }
 
-export async function fetchCandidates(
-  recruiterNameFilter?: string,
-  processoIdentifierFilter?: string,
-  recruiterIdFilter?: string
-): Promise<Lavoratore[]> {
+async function fetchCandidatesInternal(
+  processoIdentifierFilter?: string
+): Promise<AirtableRecord[]> {
   const lavoratoriFormulaParts: string[] = [];
-  if (recruiterNameFilter) {
-    const recruiterEscaped = escapeFormulaValue(recruiterNameFilter);
-    lavoratoriFormulaParts.push(
-      `OR(
-        {recruiter_processo_res}='${recruiterEscaped}',
-        FIND('${recruiterEscaped}', ARRAYJOIN({recruiter_processo_res}, ','))>0
-      )`
-    );
-  }
   if (processoIdentifierFilter) {
     const processoEscaped = escapeFormulaValue(processoIdentifierFilter);
     lavoratoriFormulaParts.push(
-      `OR(
-        FIND('${processoEscaped}', ARRAYJOIN({processo_res}, ','))>0,
-        {record_id_processo}='${processoEscaped}'
-      )`
+      `FIND('${processoEscaped}', ARRAYJOIN({processo_res}, ','))>0`
     );
   }
 
@@ -411,13 +405,50 @@ export async function fetchCandidates(
       : `AND(${lavoratoriFormulaParts.join(',')})`
   };
 
-  const lavoratoriRecords = await fetchAirtableView(
+  const records = await fetchAirtableView(
     'lavoratori_selezionati',
     '[🔒] Lovable Tinder Database',
     lavoratoriQuery,
     [
       { field: 'travel_time_tra_cap', direction: 'asc' }
     ]
+  );
+
+  console.log(
+    '[fetchCandidatesInternal] processo filter:',
+    processoIdentifierFilter ?? '(none)',
+    '| total records:',
+    records.length
+  );
+  return records;
+}
+
+export async function fetchCandidates(
+  recruiterNameFilter?: string,
+  processoIdentifierFilter?: string,
+  recruiterIdFilter?: string
+): Promise<Lavoratore[]> {
+  let lavoratoriRecords = await fetchCandidatesInternal(processoIdentifierFilter);
+  if (lavoratoriRecords.length === 0 && processoIdentifierFilter) {
+    // Fallback senza filtro processo per evitare empty state se il codice processo non corrisponde
+    lavoratoriRecords = await fetchCandidatesInternal(undefined);
+  }
+  if (lavoratoriRecords.length === 0) {
+    // Fallback ulteriore: togliamo anche il filtro sugli stati, lasciamo solo sort
+    console.log('[fetchCandidates] fallback senza filtri: eseguo fetch completo');
+    lavoratoriRecords = await fetchAirtableView(
+      'lavoratori_selezionati',
+      '[🔒] Lovable Tinder Database',
+      undefined,
+      [
+        { field: 'travel_time_tra_cap', direction: 'asc' }
+      ]
+    );
+  }
+
+  console.log(
+    '[fetchCandidates] totale records dopo fallback:',
+    lavoratoriRecords.length
   );
 
   // Collect lavoratore IDs for esperienze filtering
@@ -483,18 +514,6 @@ export async function fetchCandidates(
 
     if (processoIdentifierFilter && processo !== processoIdentifierFilter) {
       continue;
-    }
-
-    if (recruiterIdFilter) {
-      const recruiterField = fields.recruiter_processo_res;
-      const recruiterLinkedIds = Array.isArray(recruiterField)
-        ? recruiterField
-        : recruiterField
-          ? [recruiterField]
-          : [];
-      if (!recruiterLinkedIds.includes(recruiterIdFilter)) {
-        continue;
-      }
     }
 
     // Get nome from reference field

@@ -26,6 +26,8 @@ import { RecruiterFeedbackCard } from "@/components/recruiting/RecruiterFeedback
 import { RecruitingLoadingState } from "@/components/recruiting/RecruitingLoadingState";
 import { RecruitingEmptyState } from "@/components/recruiting/RecruitingEmptyState";
 import { DecisionOverrideDialog } from "@/components/recruiting/DecisionOverrideDialog";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { AiProfilerResponse } from "@/types/ai-profiler";
 
 const AVAILABILITY_DAYS = [
@@ -93,6 +95,66 @@ const getWorkerIdentifier = (worker?: Lavoratore | null) => {
   return worker.id ?? null;
 };
 
+const parseProfilerRecord = (record: {
+  worker_id?: string;
+  processo_res_id?: string;
+  raw_result?: string | null;
+  areas?: string | null;
+  reason?: string | null;
+  decision?: string | null;
+  score?: number | null;
+  version?: string | null;
+}): { key: string; data: AiProfilerResponse | null } | null => {
+  const workerId = record.worker_id;
+  const processoResId = record.processo_res_id;
+  if (!workerId || !processoResId) return null;
+
+  let parsed: AiProfilerResponse | null = null;
+  if (record.raw_result) {
+    if (typeof record.raw_result === "string") {
+      try {
+        parsed = JSON.parse(record.raw_result) as AiProfilerResponse;
+      } catch (e) {
+        console.warn("Impossibile parse raw_result", e);
+      }
+    } else if (typeof record.raw_result === "object") {
+      parsed = record.raw_result as AiProfilerResponse;
+    }
+  }
+
+  if (!parsed) {
+    const areas =
+      typeof record.areas === "string"
+        ? (() => {
+            try {
+              return JSON.parse(record.areas);
+            } catch {
+              return undefined;
+            }
+          })()
+        : typeof record.areas === "object"
+        ? (record.areas as Record<string, unknown>)
+        : undefined;
+    parsed = {
+      decision:
+        (record.decision as AiProfilerResponse["decision"]) ?? "ambiguous",
+      reason: record.reason || "Analisi non disponibile",
+      areas: areas ?? {},
+      score: record.score ?? undefined,
+      version: record.version ?? undefined,
+    };
+  }
+
+  const key = getAiProfilerKey(workerId, processoResId);
+  if (!key) return null;
+  return { key, data: parsed };
+};
+
+const decisionWeight = (decision?: AiProfilerResponse["decision"]) => {
+  if (decision === "pass") return 2;
+  if (decision === "ambiguous") return 1;
+  return 0;
+};
 const Recruiting = () => {
   const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -124,9 +186,25 @@ const Recruiting = () => {
     string | null
   >(null);
   const [ratingUpdating, setRatingUpdating] = useState(false);
+  const [profilerSyncing, setProfilerSyncing] = useState(false);
+  const [profilerBatchId, setProfilerBatchId] = useState<string | null>(null);
+  const [profilerTotal, setProfilerTotal] = useState<number>(0);
+  const [profilerProgress, setProfilerProgress] = useState<{
+    done: number;
+    pending: number;
+    running: number;
+    error: number;
+    skipped: number;
+  }>({ done: 0, pending: 0, running: 0, error: 0, skipped: 0 });
+  const [profilerPollingTicks, setProfilerPollingTicks] = useState(0);
+  const [profilerStartedMap, setProfilerStartedMap] = useState<
+    Record<string, boolean>
+  >({});
+  const [hasStartedSelection, setHasStartedSelection] = useState(false);
   const navigate = useNavigate();
   const selectedRecruiterIdRef = useRef<string>("");
   const selectedProcessoRef = useRef<string>("");
+  const hasAutoStartedRef = useRef(false);
   const { toast } = useToast();
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
@@ -142,6 +220,260 @@ const Recruiting = () => {
   const processOptions = useMemo(
     () => selectedRecruiter?.processIds ?? [],
     [selectedRecruiter]
+  );
+
+  const loadExistingProfilerResults = useCallback(
+    async (candidates: Lavoratore[], processoResId: string) => {
+      const workerIds = candidates
+        .map((w) => getWorkerIdentifier(w))
+        .filter(Boolean)
+        .map((id) => String(id).trim())
+        .filter(Boolean);
+      const uniqueWorkerIds = Array.from(new Set(workerIds));
+      if (!processoResId || uniqueWorkerIds.length === 0) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const supa: any = supabase;
+      const { data, error } = await supa
+        .from("ai_profiler_results")
+        .select(
+          "worker_id,processo_res_id,raw_result,areas,reason,decision,score,version,created_at"
+        )
+        .eq("processo_res_id", processoResId)
+        .in("worker_id", uniqueWorkerIds)
+        .order("score", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Errore lettura profiler results preesistenti:", error);
+        return;
+      }
+
+      const resultsMap: Record<string, AiProfilerCacheEntry> = {};
+      if (data) {
+        const seenWorkers = new Set<string>();
+        data.forEach((row) => {
+          const workerId = row.worker_id;
+          if (!workerId || seenWorkers.has(workerId)) {
+            return;
+          }
+          const parsed = parseProfilerRecord(row);
+          if (parsed?.data && parsed.key) {
+            resultsMap[parsed.key] = { data: parsed.data };
+            seenWorkers.add(workerId);
+          }
+        });
+      }
+
+      if (Object.keys(resultsMap).length > 0) {
+        setAiProfilerCache((prev) => ({ ...prev, ...resultsMap }));
+        setProfilerStartedMap((prev) => ({ ...prev, [processoResId]: true }));
+        setProfilerTotal(uniqueWorkerIds.length);
+        setProfilerProgress((prev) => ({
+          ...prev,
+          done: Object.keys(resultsMap).length,
+          pending: Math.max(
+            uniqueWorkerIds.length - Object.keys(resultsMap).length,
+            0
+          ),
+          running: 0,
+          error: 0,
+          skipped: 0,
+        }));
+        const scoreMap = new Map<string, number>();
+        Object.entries(resultsMap).forEach(([key, entry]) => {
+          const score =
+            entry.data?.score !== undefined ? Number(entry.data.score) : null;
+          const workerId = key.split("-")[0];
+          if (workerId && score !== null && Number.isFinite(score)) {
+            scoreMap.set(workerId, score);
+          }
+        });
+        setLavoratori((prev) => {
+          const withIndex = prev.map((w, idx) => ({
+            worker: w,
+            idx,
+            score: scoreMap.get(getWorkerIdentifier(w) ?? "") ?? -Infinity,
+          }));
+          withIndex.sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return a.idx - b.idx;
+          });
+          return withIndex.map((item) => item.worker);
+        });
+      }
+    },
+    []
+  );
+
+  const syncProfilerForProcess = useCallback(
+    async (candidates: Lavoratore[], processoResId: string) => {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (!supabaseUrl || !supabaseKey) {
+        console.warn("Supabase env mancanti: skip profiler sync");
+        return;
+      }
+      const workerIds = candidates
+        .map((w) => getWorkerIdentifier(w))
+        .filter(Boolean)
+        .map((id) => String(id).trim())
+        .filter(Boolean);
+      const uniqueWorkerIds = Array.from(new Set(workerIds));
+      if (workerIds.length === 0 || !processoResId) return;
+
+      setProfilerSyncing(true);
+      setProfilerBatchId(null);
+      setProfilerTotal(uniqueWorkerIds.length);
+      setProfilerProgress({
+        done: 0,
+        pending: uniqueWorkerIds.length,
+        running: 0,
+        error: 0,
+        skipped: 0,
+      });
+      try {
+        const authToken = supabaseSession?.access_token || supabaseKey;
+        const chunks: string[][] = [];
+        const chunkSize = 5;
+        for (let i = 0; i < uniqueWorkerIds.length; i += chunkSize) {
+          chunks.push(uniqueWorkerIds.slice(i, i + chunkSize));
+        }
+
+        let lastBatchId: string | null = null;
+        const totalCount = uniqueWorkerIds.length;
+        setProfilerBatchId(null);
+        setProfilerTotal(totalCount);
+        setProfilerProgress((prev) => ({ ...prev, pending: totalCount }));
+        let sentCount = 0;
+
+        for (const chunk of chunks) {
+          const payload = {
+            worker_ids: chunk,
+            processo_res_id: String(processoResId).trim(),
+            force: false,
+          };
+
+          const triggerResponse = await fetch(
+            `${supabaseUrl.replace(
+              /\/$/,
+              ""
+            )}/functions/v1/AI-profiler/ai/esperienze`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: supabaseKey,
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify(payload),
+            }
+          );
+          if (!triggerResponse.ok) {
+            const body = await triggerResponse.text();
+            console.error("Trigger profiler bulk failed", body);
+            throw new Error(body || "Errore trigger bulk profiler");
+          }
+          const triggerJson = await triggerResponse.json().catch(() => ({}));
+          lastBatchId =
+            (triggerJson && (triggerJson.batch_id as string)) || lastBatchId;
+          sentCount += chunk.length;
+          setProfilerProgress((prev) => ({
+            ...prev,
+            running: Math.min(sentCount, totalCount),
+            pending: Math.max(totalCount - sentCount, 0),
+          }));
+        }
+        setProfilerBatchId(lastBatchId);
+
+        const maxAttempts = 12;
+        const delayMs = 1000;
+        const resultsMap: Record<string, AiProfilerResponse> = {};
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const supa: any = supabase;
+          const { data, error } = await supa
+            .from("ai_profiler_results")
+            .select(
+              "worker_id,processo_res_id,raw_result,areas,reason,decision,score,version"
+            )
+            .eq("processo_res_id", processoResId)
+            .in("worker_id", workerIds);
+          if (error) {
+            console.error("Errore lettura profiler results:", error);
+            break;
+          }
+          if (data) {
+            data.forEach((row) => {
+              const parsed = parseProfilerRecord(row);
+              if (parsed?.data && parsed.key) {
+                resultsMap[parsed.key] = {
+                  ...parsed.data,
+                  score:
+                    parsed.data.score ??
+                    (typeof row.score === "number" ? row.score : undefined),
+                };
+              }
+            });
+          }
+          setProfilerProgress({
+            done: Object.keys(resultsMap).length,
+            pending: Math.max(totalCount - sentCount, 0),
+            running: Math.max(sentCount - Object.keys(resultsMap).length, 0),
+            error: 0,
+            skipped: 0,
+          });
+          if (Object.keys(resultsMap).length >= workerIds.length) {
+            break;
+          }
+          await new Promise((res) => setTimeout(res, delayMs));
+        }
+
+        if (Object.keys(resultsMap).length > 0) {
+          const mappedEntries = Object.fromEntries(
+            Object.entries(resultsMap).map(([key, value]) => [
+              key,
+              { data: value } as AiProfilerCacheEntry,
+            ])
+          );
+          setAiProfilerCache((prev) => ({ ...prev, ...mappedEntries }));
+          setLavoratori((prev) => {
+            const scored = [...prev].sort((a, b) => {
+              const aKey = getAiProfilerKey(
+                getWorkerIdentifier(a),
+                a.processo_res
+              );
+              const bKey = getAiProfilerKey(
+                getWorkerIdentifier(b),
+                b.processo_res
+              );
+              const aScore =
+                (aKey && resultsMap[aKey]?.score) ??
+                (aKey && prev.find((x) => x.id === a.id) ? 0 : 0);
+              const bScore =
+                (bKey && resultsMap[bKey]?.score) ??
+                (bKey && prev.find((x) => x.id === b.id) ? 0 : 0);
+              const aDecisionWeight =
+                aKey && resultsMap[aKey]?.decision
+                  ? decisionWeight(resultsMap[aKey]?.decision)
+                  : 0;
+              const bDecisionWeight =
+                bKey && resultsMap[bKey]?.decision
+                  ? decisionWeight(resultsMap[bKey]?.decision)
+                  : 0;
+              if (bDecisionWeight !== aDecisionWeight) {
+                return bDecisionWeight - aDecisionWeight;
+              }
+              return (bScore ?? 0) - (aScore ?? 0);
+            });
+            return scored;
+          });
+        }
+      } finally {
+        setProfilerSyncing(false);
+      }
+    },
+    [supabaseSession]
   );
 
   useEffect(() => {
@@ -187,115 +519,7 @@ const Recruiting = () => {
     void checkSession();
   }, [navigate]);
 
-  useEffect(() => {
-    const worker = lavoratori[currentIndex];
-    if (!worker) return;
-
-    const workerId = getWorkerIdentifier(worker);
-    const processoResId = worker.processo_res;
-
-    if (!workerId) {
-      setAiProfilerCache((prev) => ({
-        ...prev,
-        [`missing-${worker.id}`]: {
-          error: "Worker ID mancante per questa candidata",
-        },
-      }));
-      return;
-    }
-
-    const cacheKey = getAiProfilerKey(workerId, processoResId);
-
-    if (!cacheKey || aiProfilerCache[cacheKey]) {
-      return;
-    }
-
-    if (!processoResId) {
-      setAiProfilerCache((prev) => ({
-        ...prev,
-        [cacheKey]: {
-          error: "Nessun processo RES associato alla candidata",
-        },
-      }));
-      return;
-    }
-
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      setAiProfilerCache((prev) => ({
-        ...prev,
-        [cacheKey]: {
-          error:
-            "Variabili di configurazione Supabase mancanti. Verifica il file .env",
-        },
-      }));
-      return;
-    }
-
-    let isCancelled = false;
-
-    const fetchProfiler = async () => {
-      try {
-        setAiProfilerLoadingKey(cacheKey);
-        const authToken = supabaseSession?.access_token || supabaseKey;
-        const response = await fetch(
-          `${supabaseUrl.replace(
-            /\/$/,
-            ""
-          )}/functions/v1/AI-profiler/ai/esperienze`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: supabaseKey,
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({
-              worker_id: workerId,
-              processo_res_id: processoResId,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || `Errore API (${response.status})`);
-        }
-
-        const data: AiProfilerResponse = await response.json();
-        if (isCancelled) return;
-
-        setAiProfilerCache((prev) => ({
-          ...prev,
-          [cacheKey]: { data },
-        }));
-      } catch (error) {
-        if (isCancelled) return;
-        console.error("Errore AI profiler:", error);
-        setAiProfilerCache((prev) => ({
-          ...prev,
-          [cacheKey]: {
-            error:
-              error instanceof Error
-                ? error.message
-                : "Errore sconosciuto nel profiler",
-          },
-        }));
-      } finally {
-        if (!isCancelled) {
-          setAiProfilerLoadingKey((prev) => (prev === cacheKey ? null : prev));
-        }
-      }
-    };
-
-    fetchProfiler();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [aiProfilerCache, currentIndex, lavoratori, supabaseSession]);
+  // Profiling now happens in bulk per processo (see syncProfilerForProcess)
   const cleanFeedbackText = (input: unknown) => {
     // Handle non-string values
     if (input === null || input === undefined) return "";
@@ -461,7 +685,7 @@ const Recruiting = () => {
       }
       return "default";
     },
-    []
+    [statusColorLookup]
   );
 
   const colorPriority: StatusColorKey[] = [
@@ -613,13 +837,29 @@ const Recruiting = () => {
       processoId: string
     ) => {
       if (!recruiter || !processoId) {
+        console.log("[loadLavoratori] recruiter o processo mancante", {
+          recruiterPresent: Boolean(recruiter),
+          processoId,
+        });
         setLavoratori([]);
         setLoading(false);
         return;
       }
 
+      setProfilerBatchId(null);
+      setProfilerTotal(0);
+      setProfilerProgress({
+        done: 0,
+        pending: 0,
+        running: 0,
+        error: 0,
+        skipped: 0,
+      });
+      setAiProfilerCache({});
+
       const processoDetails = processoInfo[processoId];
       if (!processoDetails) {
+        console.log("[loadLavoratori] processoDetails non trovato", processoId);
         setLoading(false);
         return;
       }
@@ -627,6 +867,13 @@ const Recruiting = () => {
       const processoIdentifier =
         processoDetails.record_id_processo_value || processoId;
 
+      console.log("[loadLavoratori] start fetchCandidates", {
+        recruiter: recruiter.nome,
+        recruiterId: recruiter.id,
+        processoId,
+        processoIdentifier,
+      });
+      setProfilerStartedMap((prev) => ({ ...prev, [processoId]: false }));
       setLoading(true);
       setCurrentIndex(0);
       try {
@@ -635,7 +882,9 @@ const Recruiting = () => {
           processoIdentifier,
           recruiter.id
         );
+        console.log("[loadLavoratori] candidates length", candidates.length);
         setLavoratori(candidates);
+        await loadExistingProfilerResults(candidates, processoId);
       } catch (error) {
         console.error("Errore caricamento lavoratori:", error);
         toast({
@@ -650,7 +899,7 @@ const Recruiting = () => {
         setLoading(false);
       }
     },
-    [processoInfo, toast]
+    [processoInfo, toast, loadExistingProfilerResults]
   );
 
   const loadRecruiterData = useCallback(async () => {
@@ -717,6 +966,10 @@ const Recruiting = () => {
         variant: "destructive",
       });
       setLoading(false);
+    } finally {
+      // Ensure the loading state is cleared even when recruiters are available,
+      // so the UI can render the start screen instead of staying stuck.
+      setLoading(false);
     }
   }, [toast]);
 
@@ -751,12 +1004,84 @@ const Recruiting = () => {
     [recruiters, selectedRecruiterId]
   );
 
+  const handleStartSelection = useCallback(
+    (recruiter: RecruiterProcessSummary | undefined, processo: string) => {
+      setHasStartedSelection(true);
+      setAiProfilerCache({});
+      setProfilerBatchId(null);
+      setProfilerProgress({
+        done: 0,
+        pending: 0,
+        running: 0,
+        error: 0,
+        skipped: 0,
+      });
+      setProfilerTotal(0);
+    },
+    []
+  );
+
+  const handleAnalyzeProfiles = useCallback(async () => {
+    if (!selectedProcesso) {
+      toast({
+        title: "Processo mancante",
+        description: "Seleziona una ricerca prima di analizzare i profili",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (lavoratori.length === 0) {
+      toast({
+        title: "Nessun candidato",
+        description: "Carica i candidati prima di avviare l'analisi",
+        variant: "destructive",
+      });
+      return;
+    }
+    setProfilerStartedMap((prev) => ({ ...prev, [selectedProcesso]: true }));
+    try {
+      await syncProfilerForProcess(lavoratori, selectedProcesso);
+    } catch (error) {
+      console.error("Errore analisi profili:", error);
+      setProfilerStartedMap((prev) => ({ ...prev, [selectedProcesso]: false }));
+      toast({
+        title: "Errore analisi",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Impossibile avviare l'analisi profili",
+        variant: "destructive",
+      });
+    }
+  }, [lavoratori, selectedProcesso, syncProfilerForProcess, toast]);
+
+  useEffect(() => {
+    if (hasStartedSelection || hasAutoStartedRef.current) {
+      return;
+    }
+    const recruiter = recruiters.find(
+      (item) => item.id === selectedRecruiterId
+    );
+    if (!recruiter || !selectedProcesso) {
+      return;
+    }
+    hasAutoStartedRef.current = true;
+    handleStartSelection(recruiter, selectedProcesso);
+  }, [
+    hasStartedSelection,
+    recruiters,
+    selectedRecruiterId,
+    selectedProcesso,
+    handleStartSelection,
+  ]);
+
   useEffect(() => {
     checkAuth();
     loadRecruiterData();
-  }, [checkAuth, loadRecruiterData]);
+  }, [checkAuth, loadRecruiterData, navigate]);
 
   useEffect(() => {
+    if (!hasStartedSelection) return;
     if (!selectedRecruiter || !selectedProcesso) {
       setLavoratori([]);
       setLoading(false);
@@ -768,7 +1093,13 @@ const Recruiting = () => {
     }
 
     loadLavoratori(selectedRecruiter, selectedProcesso);
-  }, [selectedRecruiter, selectedProcesso, processoInfo, loadLavoratori]);
+  }, [
+    hasStartedSelection,
+    selectedRecruiter,
+    selectedProcesso,
+    processoInfo,
+    loadLavoratori,
+  ]);
   const processDecision = useCallback(
     async ({
       worker,
@@ -787,9 +1118,7 @@ const Recruiting = () => {
 
         toast({
           title:
-            decision === "pass"
-              ? "Candidata accettata"
-              : "Candidata rifiutata",
+            decision === "pass" ? "Candidata accettata" : "Candidata rifiutata",
           description: `${worker.nome} è stata ${
             decision === "pass" ? "contrassegnata come accettata" : "rifiutata"
           }.`,
@@ -804,9 +1133,7 @@ const Recruiting = () => {
             if (updated.length === 0) {
               return 0;
             }
-            return prevIndex >= updated.length
-              ? updated.length - 1
-              : prevIndex;
+            return prevIndex >= updated.length ? updated.length - 1 : prevIndex;
           });
           return updated;
         });
@@ -934,7 +1261,8 @@ const Recruiting = () => {
     if (!reason) {
       toast({
         title: "Motivazione richiesta",
-        description: "Spiega brevemente perché stai annullando la decisione dell'AI.",
+        description:
+          "Spiega brevemente perché stai annullando la decisione dell'AI.",
         variant: "destructive",
       });
       return;
@@ -1242,51 +1570,53 @@ const Recruiting = () => {
     return matchValue ? String(matchValue) : null;
   }, [currentLavoratore]);
 
-  if (loading) {
+  if (loading && !hasStartedSelection) {
     return <RecruitingLoadingState />;
   }
-  if (!currentLavoratore) {
+  if (hasStartedSelection && !currentLavoratore) {
     return <RecruitingEmptyState />;
   }
-  const combinedFamilyAddress = [
-    currentLavoratore.indirizzo_famiglia?.trim(),
-    currentProcessoInfo?.luogo_indirizzo?.trim(),
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const combinedFamilyAddress = currentLavoratore
+    ? [
+        currentLavoratore.indirizzo_famiglia?.trim(),
+        currentProcessoInfo?.luogo_indirizzo?.trim(),
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
   const descrizioneRicercaLavoro =
-    currentLavoratore.descrizione_ricerca_famiglia?.trim();
-  const chiSono = currentLavoratore.chi_sono?.trim();
+    currentLavoratore?.descrizione_ricerca_famiglia?.trim() || "";
+  const chiSono = currentLavoratore?.chi_sono?.trim() || "";
 
   const mapDestination =
-    combinedFamilyAddress || currentLavoratore.indirizzo_famiglia || "";
+    combinedFamilyAddress || currentLavoratore?.indirizzo_famiglia || "";
   const extraReservedInfo =
     currentProcessoInfo?.informazioni_extra_riservate?.trim() || "";
   const animalsPresenceInfo =
     currentProcessoInfo?.descrizione_animali_in_casa?.trim() || "";
-  const experienceMarkdown = currentLavoratore.riassunto_esperienze_completo
+  const experienceMarkdown = currentLavoratore?.riassunto_esperienze_completo
     ? cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)
     : null;
 
   const babysitterYearsFormatted = formatYears(
-    currentLavoratore.anni_esperienza_babysitter
+    currentLavoratore?.anni_esperienza_babysitter
   );
   const badanteYearsFormatted = formatYears(
-    currentLavoratore.anni_esperienza_badante
+    currentLavoratore?.anni_esperienza_badante
   );
-  const currentRating = currentLavoratore.rating ?? null;
+  const currentRating = currentLavoratore?.rating ?? null;
   const isStarred = currentRating === "star";
   const ratingButtonsDisabled =
-    ratingUpdating || !currentLavoratore.lavoratore_record_id;
+    ratingUpdating || !currentLavoratore?.lavoratore_record_id;
   const documentsExpectedText = "Ho tutti i documenti in regola";
   const documentsStatement =
-    currentLavoratore.documenti_in_regola_lavoratore?.trim() || "";
+    currentLavoratore?.documenti_in_regola_lavoratore?.trim() || "";
   const documentsStatementNormalized = documentsStatement.toLowerCase();
   const hasDocumentsDeclaration = documentsStatement.length > 0;
   const hasDocumentsInRegola =
     documentsStatementNormalized === documentsExpectedText.toLowerCase();
   const documentVerificationStatus =
-    currentLavoratore.stati_verifica_documento?.trim().toLowerCase() || "";
+    currentLavoratore?.stati_verifica_documento?.trim().toLowerCase() || "";
   const documentsApproved = documentVerificationStatus === "approved";
   const documentsBadgeLabel = hasDocumentsInRegola
     ? "Documenti in regola"
@@ -1298,6 +1628,11 @@ const Recruiting = () => {
       ? "border-green-200 bg-green-100 text-green-700"
       : "border-blue-200 bg-blue-100 text-blue-700"
     : "border-border bg-muted text-muted-foreground";
+  const currentProcessProfilerStarted = selectedProcesso
+    ? Boolean(profilerStartedMap[selectedProcesso])
+    : false;
+  const showAnalyzeCard =
+    hasStartedSelection && (profilerSyncing || !currentProcessProfilerStarted);
   return (
     <div className="min-h-screen bg-background flex">
       <RecruiterSidebar
@@ -1317,82 +1652,168 @@ const Recruiting = () => {
           selectedRecruiterName={selectedRecruiterName}
         />
 
-        <div className="flex-1 px-6 py-6 pb-32">
-          {/* Main Layout - 3 columns */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-3">
-              <div className="lg:sticky lg:top-6 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
-                <JobInfoCard
-                  className="lg:h-full"
-                  selectedProcesso={selectedProcesso}
-                  processOptions={processOptions}
-                  processoInfo={processoInfo}
-                  annuncioZona={currentLavoratore.annuncio_luogo_riferimento_pubblico}
-                  annuncioOrario={currentLavoratore.annuncio_orario_di_lavoro}
-                  annuncioFamiglia={currentLavoratore.annuncio_nucleo_famigliare}
-                  mansioniRichieste={currentLavoratore.mansioni_richieste}
-                  combinedFamilyAddress={combinedFamilyAddress}
-                  mapDestination={mapDestination}
-                  extraReservedInfo={extraReservedInfo}
-                  animalsPresenceInfo={animalsPresenceInfo}
-                  onSelectProcess={handleProcessSelect}
-                />
-              </div>
-            </div>
+        <div className="flex-1 px-6 py-6 pb-32 space-y-4">
+          {hasStartedSelection && (
+            <>
+              {/* Main Layout - 3 columns */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-3">
+                  <div className="lg:sticky lg:top-6 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
+                    <JobInfoCard
+                      className="lg:h-full"
+                      selectedProcesso={selectedProcesso}
+                      processOptions={processOptions}
+                      processoInfo={processoInfo}
+                      annuncioZona={
+                        currentLavoratore.annuncio_luogo_riferimento_pubblico
+                      }
+                      annuncioOrario={
+                        currentLavoratore.annuncio_orario_di_lavoro
+                      }
+                      annuncioFamiglia={
+                        currentLavoratore.annuncio_nucleo_famigliare
+                      }
+                      mansioniRichieste={currentLavoratore.mansioni_richieste}
+                      combinedFamilyAddress={combinedFamilyAddress}
+                      mapDestination={mapDestination}
+                      extraReservedInfo={extraReservedInfo}
+                      animalsPresenceInfo={animalsPresenceInfo}
+                      onSelectProcess={handleProcessSelect}
+                    />
+                  </div>
+                </div>
 
-            {/* Center: Candidate Profile */}
-            <WorkerProfileCard
-              className="lg:col-span-6"
-              lavoratore={currentLavoratore}
-              photoUrl={currentPhotoUrl}
-              descrizioneRicercaLavoro={descrizioneRicercaLavoro}
-              chiSono={chiSono}
-              babysitterYearsFormatted={babysitterYearsFormatted}
-              badanteYearsFormatted={badanteYearsFormatted}
-              documentsBadgeLabel={documentsBadgeLabel}
-              documentsBadgeClass={documentsBadgeClass}
-              hasDocumentsInRegola={hasDocumentsInRegola}
-              documentsApproved={documentsApproved}
-              ratingButtonsDisabled={ratingButtonsDisabled}
-              isStarred={isStarred}
-              onRatingUpdate={handleRatingUpdate}
-              onOpenWorkerSelections={handleOpenWorkerSelections}
-              experienceMarkdown={experienceMarkdown}
-              workerAvailability={{
-                matchValue: matchDisponibilitaText,
-                weeklyAvailability,
-                availabilitySummary,
-                availabilityDays: AVAILABILITY_DAYS,
-                hasAnyAvailability,
-                availabilityRecap:
-                  currentLavoratore.disponibilità_settimanale_recap || null,
-              }}
-              aiProfiler={{
-                data: currentAiProfilerData,
-                error: currentAiProfilerError,
-                isLoading: isAiProfilerLoading,
-                legacyFeedback: currentLavoratore.feedback_ai
-                  ? cleanFeedbackText(currentLavoratore.feedback_ai)
-                  : undefined,
-                onReportIssue: handleReportFeedbackIssue,
-                onShowSourceData: () => setShowSourceData(true),
-                onReload: handleReloadAiProfiler,
-              }}
-            />
+                <div className="lg:col-span-9 flex flex-col gap-4">
+                  {showAnalyzeCard ? (
+                    <Card className="h-full border-dashed border-2 border-muted-foreground/40">
+                      <CardContent className="p-6 space-y-4">
+                        <div className="space-y-1">
+                          <p className="text-lg font-semibold">
+                            Analizza profili
+                          </p>
+                          <p className="text-sm text-muted-foreground max-w-2xl">
+                            Invia i candidati in batch da 5 verso l&apos;AI e
+                            leggi i risultati da Supabase. Puoi riavviare
+                            l&apos;analisi se necessario.
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 h-2 bg-muted rounded">
+                              <div
+                                className="h-2 bg-primary rounded"
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    profilerTotal
+                                      ? ((profilerProgress.done +
+                                          profilerProgress.error +
+                                          profilerProgress.skipped +
+                                          profilerProgress.running) /
+                                          profilerTotal) *
+                                          100
+                                      : 0
+                                  ).toFixed(0)}%`,
+                                }}
+                              />
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {profilerTotal > 0
+                                ? `${
+                                    profilerProgress.running
+                                  } inviati, ${Math.max(
+                                    profilerTotal -
+                                      (profilerProgress.done +
+                                        profilerProgress.error +
+                                        profilerProgress.skipped +
+                                        profilerProgress.running),
+                                    0
+                                  )} in coda`
+                                : "Pronto per l'analisi"}
+                            </div>
+                          </div>
+                          <Button
+                            onClick={handleAnalyzeProfiles}
+                            disabled={
+                              profilerSyncing ||
+                              !currentProcessoInfo ||
+                              !currentLavoratore ||
+                              profilerStartedMap[selectedProcesso]
+                            }
+                          >
+                            {profilerSyncing
+                              ? "Analisi in corso..."
+                              : "Avvia analisi"}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-9 gap-4">
+                      <WorkerProfileCard
+                        className="lg:col-span-6"
+                        lavoratore={currentLavoratore}
+                        photoUrl={currentPhotoUrl}
+                        descrizioneRicercaLavoro={descrizioneRicercaLavoro}
+                        chiSono={chiSono}
+                        babysitterYearsFormatted={babysitterYearsFormatted}
+                        badanteYearsFormatted={badanteYearsFormatted}
+                        documentsBadgeLabel={documentsBadgeLabel}
+                        documentsBadgeClass={documentsBadgeClass}
+                        hasDocumentsInRegola={hasDocumentsInRegola}
+                        documentsApproved={documentsApproved}
+                        ratingButtonsDisabled={ratingButtonsDisabled}
+                        isStarred={isStarred}
+                        onRatingUpdate={handleRatingUpdate}
+                        onOpenWorkerSelections={handleOpenWorkerSelections}
+                        experienceMarkdown={experienceMarkdown}
+                        workerAvailability={{
+                          matchValue: matchDisponibilitaText,
+                          weeklyAvailability,
+                          availabilitySummary,
+                          availabilityDays: AVAILABILITY_DAYS,
+                          hasAnyAvailability,
+                          availabilityRecap:
+                            currentLavoratore.disponibilità_settimanale_recap ||
+                            null,
+                        }}
+                        aiProfiler={{
+                          data: currentAiProfilerData,
+                          error: currentAiProfilerError,
+                          isLoading: isAiProfilerLoading,
+                          legacyFeedback: currentLavoratore.feedback_ai
+                            ? cleanFeedbackText(currentLavoratore.feedback_ai)
+                            : undefined,
+                          onReportIssue: handleReportFeedbackIssue,
+                          onShowSourceData: () => setShowSourceData(true),
+                          onReload: handleReloadAiProfiler,
+                        }}
+                      />
 
-            <div className="lg:col-span-3">
-              <div className="lg:sticky lg:top-6 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
-                <RecruiterFeedbackCard
-                  className="lg:h-full"
-                  feedback={currentLavoratore.feedback_recruiter}
-                />
+                      <div className="lg:col-span-3">
+                        <div className="lg:sticky lg:top-6 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
+                          <RecruiterFeedbackCard
+                            className="lg:h-full"
+                            feedback={currentLavoratore.feedback_recruiter}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
 
-      <DecisionBar onDecision={handleDecisionClick} />
+      <DecisionBar
+        onDecision={handleDecisionClick}
+        onStartAnalysis={
+          hasStartedSelection ? handleAnalyzeProfiles : undefined
+        }
+        startDisabled={profilerSyncing || !hasStartedSelection}
+      />
 
       {/* Source Data Drawer */}
       <SourceDataDrawer

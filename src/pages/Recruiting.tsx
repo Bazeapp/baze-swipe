@@ -29,7 +29,7 @@ import { DecisionOverrideDialog } from "@/components/recruiting/DecisionOverride
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { AiProfilerResponse } from "@/types/ai-profiler";
-import { PlayCircle } from "lucide-react";
+import { PendingAnalysisBanner } from "@/components/recruiting/PendingAnalysisBanner";
 
 const AVAILABILITY_DAYS = [
   { key: "lunedi", label: "Lunedì", shortLabel: "Lun" },
@@ -308,13 +308,10 @@ const Recruiting = () => {
             resultsMap[parsed.key] = { data: parsed.data };
             seenWorkers.add(workerId);
             const rawResult = parsed.data as any;
-            const rawStatus =
-              rawResult?.status ||
-              (rawResult?.raw_result && rawResult.raw_result.status);
-            const topStatus = (row as any)?.status;
-            if (
-              String(rawStatus || topStatus || "").toLowerCase() === "pending"
-            ) {
+            const reasonText = String(
+              rawResult?.reason || (row as any)?.reason || ""
+            ).toLowerCase();
+            if (reasonText.includes("profilazione non ancora eseguita")) {
               pendingCounter += 1;
             }
           }
@@ -322,11 +319,15 @@ const Recruiting = () => {
       }
 
       if (Object.keys(resultsMap).length > 0) {
+        const missingResults =
+          uniqueWorkerIds.length - Object.keys(resultsMap).length;
+        const totalPending =
+          pendingCounter + Math.max(missingResults, 0);
         setAiProfilerCache((prev) => ({ ...prev, ...resultsMap }));
         setProfilerStartedMap((prev) => ({ ...prev, [processoResId]: true }));
         setProfilerTotal(uniqueWorkerIds.length);
         setPendingTotal(uniqueWorkerIds.length);
-        setPendingCount(pendingCounter);
+        setPendingCount(totalPending);
         setProfilerProgress((prev) => ({
           ...prev,
           done: Object.keys(resultsMap).length,
@@ -360,8 +361,8 @@ const Recruiting = () => {
           return withIndex.map((item) => item.worker);
         });
       } else {
-        setPendingCount(0);
-        setPendingTotal(0);
+        setPendingTotal(uniqueWorkerIds.length);
+        setPendingCount(uniqueWorkerIds.length);
       }
     },
     []
@@ -1658,12 +1659,10 @@ const Recruiting = () => {
     return matchValue ? String(matchValue) : null;
   }, [currentLavoratore]);
 
-  if (loading && !hasStartedSelection) {
-    return <RecruitingLoadingState />;
-  }
-  if (hasStartedSelection && !currentLavoratore) {
+  if (!loading && hasStartedSelection && !currentLavoratore) {
     return <RecruitingEmptyState />;
   }
+  const showLayout = hasStartedSelection || loading;
   const combinedFamilyAddress = currentLavoratore
     ? [
         currentLavoratore.indirizzo_famiglia?.trim(),
@@ -1741,32 +1740,14 @@ const Recruiting = () => {
         />
 
         <div className="flex-1 px-6 py-6 pb-32 space-y-4">
-          {hasStartedSelection && (
+          {showLayout && (
             <>
-              {pendingCount > 0 && pendingTotal > 0 && (
-                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm flex flex-wrap items-center justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="font-medium text-blue-800">
-                      Profili da analizzare
-                    </p>
-                    <p className="text-blue-700">
-                      {pendingTotal - pendingCount} su {pendingTotal}{" "}
-                      analizzati. Avvia l&apos;analisi per completare i profili
-                      pendenti.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleAnalyzeProfiles}
-                    size="sm"
-                    variant="outline"
-                    className="gap-2"
-                    disabled={profilerSyncing}
-                  >
-                    <PlayCircle className="w-4 h-4" />
-                    Avvia analisi
-                  </Button>
-                </div>
-              )}
+              <PendingAnalysisBanner
+                pendingCount={pendingCount}
+                pendingTotal={pendingTotal}
+                onAnalyze={handleAnalyzeProfiles}
+                disabled={profilerSyncing}
+              />
               {/* Main Layout - 3 columns */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-3">
@@ -1777,15 +1758,15 @@ const Recruiting = () => {
                       processOptions={processOptions}
                       processoInfo={processoInfo}
                       annuncioZona={
-                        currentLavoratore.annuncio_luogo_riferimento_pubblico
+                        currentLavoratore?.annuncio_luogo_riferimento_pubblico
                       }
                       annuncioOrario={
-                        currentLavoratore.annuncio_orario_di_lavoro
+                        currentLavoratore?.annuncio_orario_di_lavoro
                       }
                       annuncioFamiglia={
-                        currentLavoratore.annuncio_nucleo_famigliare
+                        currentLavoratore?.annuncio_nucleo_famigliare
                       }
-                      mansioniRichieste={currentLavoratore.mansioni_richieste}
+                      mansioniRichieste={currentLavoratore?.mansioni_richieste}
                       combinedFamilyAddress={combinedFamilyAddress}
                       mapDestination={mapDestination}
                       extraReservedInfo={extraReservedInfo}
@@ -1797,54 +1778,60 @@ const Recruiting = () => {
 
                 <div className="lg:col-span-9 flex flex-col gap-4">
                   <div className="grid grid-cols-1 lg:grid-cols-9 gap-4">
-                    <WorkerProfileCard
-                      className="lg:col-span-6"
-                      lavoratore={currentLavoratore}
-                      photoUrl={currentPhotoUrl}
-                      descrizioneRicercaLavoro={descrizioneRicercaLavoro}
-                      chiSono={chiSono}
-                      babysitterYearsFormatted={babysitterYearsFormatted}
-                      badanteYearsFormatted={badanteYearsFormatted}
-                      documentsBadgeLabel={documentsBadgeLabel}
-                      documentsBadgeClass={documentsBadgeClass}
-                      hasDocumentsInRegola={hasDocumentsInRegola}
-                      documentsApproved={documentsApproved}
-                      ratingButtonsDisabled={ratingButtonsDisabled}
-                      isStarred={isStarred}
-                      onRatingUpdate={handleRatingUpdate}
-                      onOpenWorkerSelections={handleOpenWorkerSelections}
-                      experienceMarkdown={experienceMarkdown}
-                      workerAvailability={{
-                        matchValue: matchDisponibilitaText,
-                        weeklyAvailability,
-                        availabilitySummary,
-                        availabilityDays: AVAILABILITY_DAYS,
-                        hasAnyAvailability,
-                        availabilityRecap:
-                          currentLavoratore.disponibilità_settimanale_recap ||
-                          null,
-                      }}
-                      aiProfiler={{
-                        data: currentAiProfilerData,
-                        error: currentAiProfilerError,
-                        isLoading: isAiProfilerLoading,
-                        legacyFeedback: currentLavoratore.feedback_ai
-                          ? cleanFeedbackText(currentLavoratore.feedback_ai)
-                          : undefined,
-                        onReportIssue: handleReportFeedbackIssue,
-                        onShowSourceData: () => setShowSourceData(true),
-                        onReload: handleReloadAiProfiler,
-                      }}
-                    />
-
-                    <div className="lg:col-span-3">
-                      <div className="lg:sticky lg:top-6 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
-                        <RecruiterFeedbackCard
-                          className="lg:h-full"
-                          feedback={currentLavoratore.feedback_recruiter}
+                    {loading || !currentLavoratore ? (
+                      <RecruitingLoadingState />
+                    ) : (
+                      <>
+                        <WorkerProfileCard
+                          className="lg:col-span-6"
+                          lavoratore={currentLavoratore}
+                          photoUrl={currentPhotoUrl}
+                          descrizioneRicercaLavoro={descrizioneRicercaLavoro}
+                          chiSono={chiSono}
+                          babysitterYearsFormatted={babysitterYearsFormatted}
+                          badanteYearsFormatted={badanteYearsFormatted}
+                          documentsBadgeLabel={documentsBadgeLabel}
+                          documentsBadgeClass={documentsBadgeClass}
+                          hasDocumentsInRegola={hasDocumentsInRegola}
+                          documentsApproved={documentsApproved}
+                          ratingButtonsDisabled={ratingButtonsDisabled}
+                          isStarred={isStarred}
+                          onRatingUpdate={handleRatingUpdate}
+                          onOpenWorkerSelections={handleOpenWorkerSelections}
+                          experienceMarkdown={experienceMarkdown}
+                          workerAvailability={{
+                            matchValue: matchDisponibilitaText,
+                            weeklyAvailability,
+                            availabilitySummary,
+                            availabilityDays: AVAILABILITY_DAYS,
+                            hasAnyAvailability,
+                            availabilityRecap:
+                              currentLavoratore.disponibilità_settimanale_recap ||
+                              null,
+                          }}
+                          aiProfiler={{
+                            data: currentAiProfilerData,
+                            error: currentAiProfilerError,
+                            isLoading: isAiProfilerLoading,
+                            legacyFeedback: currentLavoratore.feedback_ai
+                              ? cleanFeedbackText(currentLavoratore.feedback_ai)
+                              : undefined,
+                            onReportIssue: handleReportFeedbackIssue,
+                            onShowSourceData: () => setShowSourceData(true),
+                            onReload: handleReloadAiProfiler,
+                          }}
                         />
-                      </div>
-                    </div>
+
+                        <div className="lg:col-span-3">
+                          <div className="lg:sticky lg:top-6 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
+                            <RecruiterFeedbackCard
+                              className="lg:h-full"
+                              feedback={currentLavoratore.feedback_recruiter}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

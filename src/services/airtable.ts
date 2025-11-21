@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 const AIRTABLE_API_KEY = import.meta.env.VITE_AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = import.meta.env.VITE_AIRTABLE_BASE_ID;
 
@@ -274,106 +276,94 @@ export async function fetchRecruiterProcesses(): Promise<{
   recruiters: RecruiterProcessSummary[];
   processoInfo: Record<string, ProcessoInfo>;
 }> {
-  const processoResRecords = await fetchAirtableView(
-    'processo_res',
-    '[🔐 No Edit] baze_swipe',
-    {
-      filterByFormula:
-        "OR({stato_res}='fare ricerca',FIND('fare ricerca', ARRAYJOIN({stato_res}, ','))>0)",
-    },
-    undefined,
-    [
-      'nome_recruiter',
-      'tipo_lavoro',
-      'tipo_rapporto',
-      'momento_giornata',
-      'email_famiglia',
-      'informazioni_extra_riservate',
-      'descrizione_animali_in_casa',
-      'luogo_indirizzo',
-      'stato_res',
-    ]
-  );
+  const { data, error } = await supabase.functions.invoke('recruiter-active');
+  if (error) {
+    console.error('Errore edge function recruiter-active', error);
+    throw new Error('Impossibile recuperare i recruiter attivi');
+  }
+
+  // L'edge function restituisce un oggetto con recruiters e processInfo.
+  let payload: any =
+    data && typeof data === 'object' && 'data' in (data as any)
+      ? (data as any).data
+      : data;
+  if (typeof payload === 'string') {
+    try {
+      payload = JSON.parse(payload);
+    } catch (e) {
+      console.error('Impossibile fare parse della risposta recruiter-active', e);
+      payload = {};
+    }
+  }
+
+  const rawRecruiters: any[] = Array.isArray((payload as any)?.recruiters)
+    ? (payload as any).recruiters
+    : [];
+  const rawProcessInfo: Record<string, any> =
+    (payload as any)?.processInfo || (payload as any)?.processoInfo || {};
 
   const recruiterProcessMap = new Map<string, RecruiterProcessSummary>();
   const processoInfoMap = new Map<string, ProcessoInfo>();
 
-  for (const processo of processoResRecords) {
-    const nomeRecruiterField = processo.fields.nome_recruiter;
-    const recruiterNome = Array.isArray(nomeRecruiterField)
-      ? nomeRecruiterField[0]
-      : nomeRecruiterField;
+  rawRecruiters.forEach((r: any) => {
     const recruiterId =
-      typeof recruiterNome === 'string'
+      typeof r.id === 'string'
+        ? r.id.trim().toLowerCase()
+        : typeof r.recruiter_id === 'string'
+        ? r.recruiter_id.trim().toLowerCase()
+        : undefined;
+    if (!recruiterId) return;
+    const nome = r.name || r.nome || r.recruiter_name || recruiterId;
+    recruiterProcessMap.set(recruiterId, {
+      id: recruiterId,
+      nome,
+      processIds: Array.isArray(r.processIds) ? r.processIds : [],
+    });
+  });
+
+  Object.entries(rawProcessInfo).forEach(([processoId, info]) => {
+    const recruiterNome =
+      info.recruiter_name || info.recruiter || info.recruiter_id;
+    const recruiterId =
+      typeof info.recruiter_id === 'string'
+        ? info.recruiter_id.trim().toLowerCase()
+        : typeof recruiterNome === 'string'
         ? recruiterNome.trim().toLowerCase()
         : undefined;
-    const processoId = processo.id;
-    const tipoLavoro = Array.isArray(processo.fields.tipo_lavoro)
-      ? processo.fields.tipo_lavoro[0]
-      : processo.fields.tipo_lavoro;
-    const tipoRapporto = Array.isArray(processo.fields.tipo_rapporto)
-      ? processo.fields.tipo_rapporto[0]
-      : processo.fields.tipo_rapporto;
-    const momentoGiornata = Array.isArray(processo.fields.momento_giornata)
-      ? processo.fields.momento_giornata[0]
-      : processo.fields.momento_giornata;
-    const emailFamiglia = Array.isArray(processo.fields.email_famiglia)
-      ? processo.fields.email_famiglia[0]
-      : processo.fields.email_famiglia;
-
-    const informazioniExtra = processo.fields.informazioni_extra_riservate;
-    const informazioniExtraValue = Array.isArray(informazioniExtra)
-      ? informazioniExtra[0]
-      : informazioniExtra;
-
-    const animaliCasa = processo.fields.descrizione_animali_in_casa;
-    const animaliCasaValue = Array.isArray(animaliCasa)
-      ? animaliCasa[0]
-      : animaliCasa;
-
-    const luogoIndirizzoField = processo.fields.luogo_indirizzo;
-    const luogoIndirizzoValue = Array.isArray(luogoIndirizzoField)
-      ? luogoIndirizzoField[0]
-      : luogoIndirizzoField;
-
-    const stato = processo.fields.stato_res;
-    const statoValue = Array.isArray(stato) ? stato[0] : stato;
-    if (statoValue && String(statoValue).toLowerCase() !== 'fare ricerca') {
-      continue;
-    }
-
-    if (!recruiterId) {
-      continue;
-    }
-
-    const processoIdentifierRaw = processo.fields.record_id_processo;
-    const processoIdentifier = Array.isArray(processoIdentifierRaw)
-      ? processoIdentifierRaw[0]
-      : processoIdentifierRaw;
+    const processoIdentifier =
+      info.record_id_processo_value ||
+      info.record_id_processo ||
+      info.process_id ||
+      processoId;
 
     processoInfoMap.set(processoId, {
-      tipo_lavoro: tipoLavoro || '',
-      recruiter: recruiterNome,
-      recruiterId,
-      tipo_rapporto: tipoRapporto || '',
-      momento_giornata: momentoGiornata || '',
-      email_famiglia: emailFamiglia || '',
-      record_id_processo_value: processoIdentifier ? String(processoIdentifier) : processoId,
-      informazioni_extra_riservate: informazioniExtraValue || '',
-      descrizione_animali_in_casa: animaliCasaValue || '',
-      luogo_indirizzo: luogoIndirizzoValue || '',
+      tipo_lavoro: info.tipo_lavoro || '',
+      recruiter: recruiterNome || recruiterId || '',
+      recruiterId: recruiterId || '',
+      tipo_rapporto: info.tipo_rapporto || '',
+      momento_giornata: info.momento_giornata || '',
+      email_famiglia: info.email_famiglia || '',
+      record_id_processo_value: String(processoIdentifier || processoId),
+      informazioni_extra_riservate:
+        info.informazioni_extra_riservate || info.note || '',
+      descrizione_animali_in_casa: info.animali || info.descrizione_animali_in_casa || '',
+      luogo_indirizzo: info.luogo_indirizzo || info.indirizzo || '',
     });
 
-    if (!recruiterProcessMap.has(recruiterId)) {
-      recruiterProcessMap.set(recruiterId, {
-        id: recruiterId,
-        nome: recruiterNome,
-        processIds: [],
-      });
+    if (recruiterId) {
+      if (!recruiterProcessMap.has(recruiterId)) {
+        recruiterProcessMap.set(recruiterId, {
+          id: recruiterId,
+          nome: recruiterNome || recruiterId,
+          processIds: [],
+        });
+      }
+      const current = recruiterProcessMap.get(recruiterId);
+      if (current && !current.processIds.includes(processoId)) {
+        current.processIds.push(processoId);
+      }
     }
-
-    recruiterProcessMap.get(recruiterId)!.processIds.push(processoId);
-  }
+  });
 
   const recruiters = Array.from(recruiterProcessMap.values());
 

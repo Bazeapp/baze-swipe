@@ -205,6 +205,8 @@ interface AiProfilerPanelProps {
   onReportIssue: () => void;
   onShowSourceData: () => void;
   onReload: () => void;
+  onReparse?: () => void;
+  reparseDisabled?: boolean;
   supplementalSections?: SupplementalSections;
   availabilityData?: AvailabilityData | null;
 }
@@ -217,6 +219,8 @@ export function AiProfilerPanel({
   onReportIssue,
   onShowSourceData,
   onReload,
+  onReparse,
+  reparseDisabled,
   supplementalSections = {},
   availabilityData,
 }: AiProfilerPanelProps) {
@@ -405,6 +409,21 @@ export function AiProfilerPanel({
 
   return (
     <div className="space-y-4">
+      {onReparse && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onReparse}
+            disabled={isLoading || reparseDisabled}
+            className="gap-1.5"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Riesegui parsing
+          </Button>
+        </div>
+      )}
+
       {isLoading && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin" />

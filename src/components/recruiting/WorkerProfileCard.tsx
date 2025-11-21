@@ -35,6 +35,8 @@ interface AiProfilerProps {
   onReportIssue: () => void;
   onShowSourceData: () => void;
   onReload: () => void;
+  onReparse?: () => void;
+  reparseDisabled?: boolean;
 }
 
 interface WorkerProfileCardProps {
@@ -296,6 +298,8 @@ export function WorkerProfileCard({
           error={aiProfiler.error}
           isLoading={aiProfiler.isLoading}
           legacyFeedback={legacyFeedback}
+          onReparse={aiProfiler.onReparse}
+          reparseDisabled={aiProfiler.reparseDisabled}
           supplementalSections={supplementalSections}
           availabilityData={{
             matchValue,

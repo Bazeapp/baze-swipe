@@ -31,6 +31,8 @@ import { Button } from "@/components/ui/button";
 import type { AiProfilerResponse } from "@/types/ai-profiler";
 import { PendingAnalysisBanner } from "@/components/recruiting/PendingAnalysisBanner";
 
+const STATE_CACHE_KEY = "recruiting-page-cache-v1";
+
 const AVAILABILITY_DAYS = [
   { key: "lunedi", label: "Lunedì", shortLabel: "Lun" },
   { key: "martedi", label: "Martedì", shortLabel: "Mar" },
@@ -204,6 +206,7 @@ const Recruiting = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingTotal, setPendingTotal] = useState(0);
   const [hasStartedSelection, setHasStartedSelection] = useState(false);
+  const [restoredFromCache, setRestoredFromCache] = useState(false);
   const navigate = useNavigate();
   const selectedRecruiterIdRef = useRef<string>("");
   const selectedProcessoRef = useRef<string>("");
@@ -214,6 +217,35 @@ const Recruiting = () => {
   const [overrideContext, setOverrideContext] =
     useState<OverrideContext | null>(null);
   const [overrideSubmitting, setOverrideSubmitting] = useState(false);
+  const [profilerRetriggering, setProfilerRetriggering] = useState(false);
+  // Restore cached state on mount to avoid refetch when returning to the page
+  useEffect(() => {
+    const raw = sessionStorage.getItem(STATE_CACHE_KEY);
+    if (!raw) {
+      setRestoredFromCache(true);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.recruiters) setRecruiters(parsed.recruiters);
+      if (parsed.processoInfo) setProcessoInfo(parsed.processoInfo);
+      if (parsed.selectedRecruiterId) setSelectedRecruiterId(parsed.selectedRecruiterId);
+      if (parsed.selectedProcesso) setSelectedProcesso(parsed.selectedProcesso);
+      if (typeof parsed.hasStartedSelection === "boolean") {
+        setHasStartedSelection(parsed.hasStartedSelection);
+      }
+      if (Array.isArray(parsed.lavoratori)) setLavoratori(parsed.lavoratori);
+      if (parsed.aiProfilerCache) setAiProfilerCache(parsed.aiProfilerCache);
+      if (typeof parsed.pendingCount === "number") setPendingCount(parsed.pendingCount);
+      if (typeof parsed.pendingTotal === "number") setPendingTotal(parsed.pendingTotal);
+      if (parsed.profilerProgress) setProfilerProgress(parsed.profilerProgress);
+      if (typeof parsed.currentIndex === "number") setCurrentIndex(parsed.currentIndex);
+    } catch (e) {
+      console.warn("Impossibile ripristinare cache Recruiting:", e);
+    } finally {
+      setRestoredFromCache(true);
+    }
+  }, []);
 
   const selectedRecruiter = useMemo(
     () => recruiters.find((recruiter) => recruiter.id === selectedRecruiterId),
@@ -898,6 +930,14 @@ const Recruiting = () => {
       recruiter: RecruiterProcessSummary | undefined,
       processoId: string
     ) => {
+      if (
+        restoredFromCache &&
+        processoId === selectedProcesso &&
+        lavoratori.length > 0
+      ) {
+        setLoading(false);
+        return;
+      }
       if (!recruiter || !processoId) {
         console.log("[loadLavoratori] recruiter o processo mancante", {
           recruiterPresent: Boolean(recruiter),
@@ -987,6 +1027,11 @@ const Recruiting = () => {
   );
 
   const loadRecruiterData = useCallback(async () => {
+    // Se abbiamo già ripristinato dati dal cache e sono presenti, evita refetch
+    if (restoredFromCache && recruiters.length > 0 && Object.keys(processoInfo).length > 0) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const data = await fetchRecruiterProcesses();
@@ -1165,9 +1210,14 @@ const Recruiting = () => {
   ]);
 
   useEffect(() => {
+    if (!restoredFromCache) return;
     checkAuth();
-    loadRecruiterData();
-  }, [checkAuth, loadRecruiterData, navigate]);
+    if (recruiters.length === 0 || Object.keys(processoInfo).length === 0) {
+      loadRecruiterData();
+    } else {
+      setLoading(false);
+    }
+  }, [restoredFromCache, checkAuth, loadRecruiterData, navigate, recruiters.length, processoInfo]);
 
   useEffect(() => {
     if (!hasStartedSelection) return;
@@ -1494,6 +1544,153 @@ const Recruiting = () => {
       return updated;
     });
   }, [currentAiProfilerKey]);
+  const handleRetriggerProfiler = useCallback(async () => {
+    if (!currentLavoratore || !selectedProcesso) {
+      return;
+    }
+    const workerId = getWorkerIdentifier(currentLavoratore);
+    if (!workerId) {
+      toast({
+        title: "ID lavoratore mancante",
+        description: "Impossibile rilanciare il parsing senza worker id.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      toast({
+        title: "Configurazione Supabase mancante",
+        description: "Controlla VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const payload = {
+      worker_ids: [workerId],
+      processo_res_id: String(selectedProcesso).trim(),
+      force: true,
+    };
+    const authToken = supabaseSession?.access_token || supabaseKey;
+    const targetKey = getAiProfilerKey(workerId, selectedProcesso);
+    setProfilerRetriggering(true);
+    if (targetKey) {
+      setAiProfilerLoadingKey(targetKey);
+    }
+    try {
+      const triggerResponse = await fetch(
+        `${supabaseUrl.replace(/\/$/, "")}/functions/v1/AI-profiler/ai/esperienze`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: supabaseKey,
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!triggerResponse.ok) {
+        const body = await triggerResponse.text();
+        throw new Error(body || "Errore trigger parsing");
+      }
+
+      // Poll per ottenere il risultato aggiornato
+      const attempts = 6;
+      const delayMs = 1000;
+      for (let attempt = 0; attempt < attempts; attempt++) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const supa: any = supabase;
+        const { data, error } = await supa
+          .from("ai_profiler_results")
+          .select(
+            "worker_id,processo_res_id,raw_result,areas,reason,decision,score,version,created_at,status"
+          )
+          .eq("processo_res_id", selectedProcesso)
+          .eq("worker_id", workerId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (error) {
+          console.error("Errore lettura profiler result singolo:", error);
+          break;
+        }
+        if (data && data.length > 0) {
+          const parsed = parseProfilerRecord(data[0]);
+          if (parsed?.key && parsed.data) {
+            setAiProfilerCache((prev) => ({
+              ...prev,
+              [parsed.key]: { data: parsed.data },
+            }));
+            const reasonText = String(parsed.data.reason || "").toLowerCase();
+            const isPending =
+              reasonText.includes("profilazione non ancora eseguita");
+            if (!isPending) {
+              setPendingCount((prev) => Math.max(prev - 1, 0));
+              setProfilerProgress((prev) => ({
+                ...prev,
+                done: prev.done + 1,
+                pending: Math.max(prev.pending - 1, 0),
+              }));
+            }
+            break;
+          }
+        }
+        await new Promise((res) => setTimeout(res, delayMs));
+      }
+    } catch (error) {
+      console.error("Errore nel ritrigger parsing:", error);
+      toast({
+        title: "Errore ritrigger",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Impossibile rilanciare il parsing",
+        variant: "destructive",
+      });
+    } finally {
+      setProfilerRetriggering(false);
+      setAiProfilerLoadingKey(null);
+    }
+  }, [currentLavoratore, selectedProcesso, supabaseSession, toast]);
+
+  // Persist relevant state to avoid refetch on tab/page return
+  useEffect(() => {
+    if (!restoredFromCache) return;
+    const payload = {
+      recruiters,
+      processoInfo,
+      selectedRecruiterId,
+      selectedProcesso,
+      hasStartedSelection,
+      lavoratori,
+      aiProfilerCache,
+      pendingCount,
+      pendingTotal,
+      profilerProgress,
+      currentIndex,
+    };
+    try {
+      sessionStorage.setItem(STATE_CACHE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.warn("Cache Recruiting non salvata:", e);
+    }
+  }, [
+    restoredFromCache,
+    recruiters,
+    processoInfo,
+    selectedRecruiterId,
+    selectedProcesso,
+    hasStartedSelection,
+    lavoratori,
+    aiProfilerCache,
+    pendingCount,
+    pendingTotal,
+    profilerProgress,
+    currentIndex,
+  ]);
   const currentProcessoInfo = selectedProcesso
     ? processoInfo[selectedProcesso]
     : undefined;
@@ -1819,6 +2016,8 @@ const Recruiting = () => {
                             onReportIssue: handleReportFeedbackIssue,
                             onShowSourceData: () => setShowSourceData(true),
                             onReload: handleReloadAiProfiler,
+                            onReparse: handleRetriggerProfiler,
+                            reparseDisabled: profilerRetriggering,
                           }}
                         />
 

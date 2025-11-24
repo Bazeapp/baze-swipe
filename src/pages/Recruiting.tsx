@@ -31,8 +31,6 @@ import { Button } from "@/components/ui/button";
 import type { AiProfilerResponse } from "@/types/ai-profiler";
 import { PendingAnalysisBanner } from "@/components/recruiting/PendingAnalysisBanner";
 
-const STATE_CACHE_KEY = "recruiting-page-cache-v1";
-
 const AVAILABILITY_DAYS = [
   { key: "lunedi", label: "Lunedì", shortLabel: "Lun" },
   { key: "martedi", label: "Martedì", shortLabel: "Mar" },
@@ -206,7 +204,6 @@ const Recruiting = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingTotal, setPendingTotal] = useState(0);
   const [hasStartedSelection, setHasStartedSelection] = useState(false);
-  const [restoredFromCache, setRestoredFromCache] = useState(false);
   const navigate = useNavigate();
   const selectedRecruiterIdRef = useRef<string>("");
   const selectedProcessoRef = useRef<string>("");
@@ -218,34 +215,6 @@ const Recruiting = () => {
     useState<OverrideContext | null>(null);
   const [overrideSubmitting, setOverrideSubmitting] = useState(false);
   const [profilerRetriggering, setProfilerRetriggering] = useState(false);
-  // Restore cached state on mount to avoid refetch when returning to the page
-  useEffect(() => {
-    const raw = sessionStorage.getItem(STATE_CACHE_KEY);
-    if (!raw) {
-      setRestoredFromCache(true);
-      return;
-    }
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed.recruiters) setRecruiters(parsed.recruiters);
-      if (parsed.processoInfo) setProcessoInfo(parsed.processoInfo);
-      if (parsed.selectedRecruiterId) setSelectedRecruiterId(parsed.selectedRecruiterId);
-      if (parsed.selectedProcesso) setSelectedProcesso(parsed.selectedProcesso);
-      if (typeof parsed.hasStartedSelection === "boolean") {
-        setHasStartedSelection(parsed.hasStartedSelection);
-      }
-      if (Array.isArray(parsed.lavoratori)) setLavoratori(parsed.lavoratori);
-      if (parsed.aiProfilerCache) setAiProfilerCache(parsed.aiProfilerCache);
-      if (typeof parsed.pendingCount === "number") setPendingCount(parsed.pendingCount);
-      if (typeof parsed.pendingTotal === "number") setPendingTotal(parsed.pendingTotal);
-      if (parsed.profilerProgress) setProfilerProgress(parsed.profilerProgress);
-      if (typeof parsed.currentIndex === "number") setCurrentIndex(parsed.currentIndex);
-    } catch (e) {
-      console.warn("Impossibile ripristinare cache Recruiting:", e);
-    } finally {
-      setRestoredFromCache(true);
-    }
-  }, []);
 
   const selectedRecruiter = useMemo(
     () => recruiters.find((recruiter) => recruiter.id === selectedRecruiterId),
@@ -930,14 +899,6 @@ const Recruiting = () => {
       recruiter: RecruiterProcessSummary | undefined,
       processoId: string
     ) => {
-      if (
-        restoredFromCache &&
-        processoId === selectedProcesso &&
-        lavoratori.length > 0
-      ) {
-        setLoading(false);
-        return;
-      }
       if (!recruiter || !processoId) {
         console.log("[loadLavoratori] recruiter o processo mancante", {
           recruiterPresent: Boolean(recruiter),
@@ -1027,11 +988,6 @@ const Recruiting = () => {
   );
 
   const loadRecruiterData = useCallback(async () => {
-    // Se abbiamo già ripristinato dati dal cache e sono presenti, evita refetch
-    if (restoredFromCache && recruiters.length > 0 && Object.keys(processoInfo).length > 0) {
-      setLoading(false);
-      return;
-    }
     try {
       setLoading(true);
       const data = await fetchRecruiterProcesses();
@@ -1210,14 +1166,13 @@ const Recruiting = () => {
   ]);
 
   useEffect(() => {
-    if (!restoredFromCache) return;
     checkAuth();
     if (recruiters.length === 0 || Object.keys(processoInfo).length === 0) {
       loadRecruiterData();
     } else {
       setLoading(false);
     }
-  }, [restoredFromCache, checkAuth, loadRecruiterData, navigate, recruiters.length, processoInfo]);
+  }, [checkAuth, loadRecruiterData, navigate, recruiters.length, processoInfo]);
 
   useEffect(() => {
     if (!hasStartedSelection) return;
@@ -1656,41 +1611,6 @@ const Recruiting = () => {
     }
   }, [currentLavoratore, selectedProcesso, supabaseSession, toast]);
 
-  // Persist relevant state to avoid refetch on tab/page return
-  useEffect(() => {
-    if (!restoredFromCache) return;
-    const payload = {
-      recruiters,
-      processoInfo,
-      selectedRecruiterId,
-      selectedProcesso,
-      hasStartedSelection,
-      lavoratori,
-      aiProfilerCache,
-      pendingCount,
-      pendingTotal,
-      profilerProgress,
-      currentIndex,
-    };
-    try {
-      sessionStorage.setItem(STATE_CACHE_KEY, JSON.stringify(payload));
-    } catch (e) {
-      console.warn("Cache Recruiting non salvata:", e);
-    }
-  }, [
-    restoredFromCache,
-    recruiters,
-    processoInfo,
-    selectedRecruiterId,
-    selectedProcesso,
-    hasStartedSelection,
-    lavoratori,
-    aiProfilerCache,
-    pendingCount,
-    pendingTotal,
-    profilerProgress,
-    currentIndex,
-  ]);
   const currentProcessoInfo = selectedProcesso
     ? processoInfo[selectedProcesso]
     : undefined;

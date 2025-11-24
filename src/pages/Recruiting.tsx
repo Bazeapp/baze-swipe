@@ -215,6 +215,58 @@ const Recruiting = () => {
     useState<OverrideContext | null>(null);
   const [overrideSubmitting, setOverrideSubmitting] = useState(false);
   const [profilerRetriggering, setProfilerRetriggering] = useState(false);
+  const triggerProfilerReview = useCallback(
+    async (processoResId: string | null | undefined, workerIds: string[]) => {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (!supabaseUrl || !supabaseKey) {
+        console.warn(
+          "Skip profiler review trigger: missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY"
+        );
+        return;
+      }
+      const validWorkerIds = workerIds.filter(
+        (id) => typeof id === "string" && id.trim().length > 0
+      );
+      if (!processoResId || validWorkerIds.length === 0) {
+        console.warn(
+          "Skip profiler review trigger: missing processo_res_id or worker_ids"
+        );
+        return;
+      }
+      const authToken = supabaseSession?.access_token || supabaseKey;
+      const payload =
+        validWorkerIds.length === 1
+          ? { processo_res_id: processoResId, worker_id: validWorkerIds[0] }
+          : { processo_res_id: processoResId, worker_ids: validWorkerIds };
+      try {
+        const response = await fetch(
+          `${supabaseUrl.replace(/\/$/, "")}/functions/v1/AI-profiler-review/ai/esperienze/review`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: supabaseKey,
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+        if (!response.ok) {
+          const body = await response.text();
+          console.warn(
+            "Profiler review trigger failed",
+            response.status,
+            response.statusText,
+            body
+          );
+        }
+      } catch (error) {
+        console.warn("Profiler review trigger error", error);
+      }
+    },
+    [supabaseSession]
+  );
 
   const selectedRecruiter = useMemo(
     () => recruiters.find((recruiter) => recruiter.id === selectedRecruiterId),
@@ -1342,11 +1394,23 @@ const Recruiting = () => {
           workerIndex: currentIndex,
           decision,
         });
+        const processoResId = worker.processo_res ?? selectedProcesso;
+        const workerIdentifier = getWorkerIdentifier(worker);
+        if (workerIdentifier && processoResId) {
+          triggerProfilerReview(processoResId, [workerIdentifier]);
+        }
       } catch {
         // Error already handled in processDecision
       }
     },
-    [lavoratori, currentIndex, aiProfilerCache, processDecision]
+    [
+      lavoratori,
+      currentIndex,
+      aiProfilerCache,
+      processDecision,
+      selectedProcesso,
+      triggerProfilerReview,
+    ]
   );
 
   const handleOverrideConfirm = useCallback(async () => {

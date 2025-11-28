@@ -268,6 +268,30 @@ const Recruiting = () => {
     [supabaseSession]
   );
 
+  const markProfilerReviewed = useCallback(
+    async (processoResId: string | null | undefined, workerIds: string[]) => {
+      const validIds = workerIds
+        .map((id) => (typeof id === "string" ? id.trim() : ""))
+        .filter((id) => id.length > 0);
+      if (!processoResId || validIds.length === 0) return;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const supa: any = supabase;
+        const { error } = await supa
+          .from("ai_profiler_results")
+          .update({ status: "reviewed" })
+          .eq("processo_res_id", processoResId)
+          .in("worker_id", validIds);
+        if (error) {
+          console.warn("markProfilerReviewed error", error);
+        }
+      } catch (err) {
+        console.warn("markProfilerReviewed exception", err);
+      }
+    },
+    []
+  );
+
   const selectedRecruiter = useMemo(
     () => recruiters.find((recruiter) => recruiter.id === selectedRecruiterId),
     [recruiters, selectedRecruiterId]
@@ -1384,6 +1408,7 @@ const Recruiting = () => {
         const workerIdentifier = getWorkerIdentifier(worker);
         if (workerIdentifier && processoResId) {
           triggerProfilerReview(processoResId, [workerIdentifier]);
+          await markProfilerReviewed(processoResId, [workerIdentifier]);
         }
       } catch {
         // Error already handled in processDecision
@@ -1396,6 +1421,7 @@ const Recruiting = () => {
       processDecision,
       selectedProcesso,
       triggerProfilerReview,
+      markProfilerReviewed,
     ]
   );
 
@@ -1420,6 +1446,13 @@ const Recruiting = () => {
         workerIndex: overrideContext.workerIndex,
         decision: overrideContext.recruiterDecision,
       });
+      const processoResId =
+        overrideContext.worker.processo_res ?? selectedProcesso;
+      const workerIdentifier = getWorkerIdentifier(overrideContext.worker);
+      if (workerIdentifier && processoResId) {
+        triggerProfilerReview(processoResId, [workerIdentifier]);
+        await markProfilerReviewed(processoResId, [workerIdentifier]);
+      }
       setOverrideDialogOpen(false);
       setOverrideContext(null);
       setOverrideReason("");
@@ -1434,6 +1467,9 @@ const Recruiting = () => {
     processDecision,
     sendOverrideFeedback,
     toast,
+    selectedProcesso,
+    triggerProfilerReview,
+    markProfilerReviewed,
   ]);
 
   const handleOverrideDialogChange = useCallback(

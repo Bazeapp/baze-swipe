@@ -14,7 +14,7 @@ import type {
   AvailabilitySummarySlot,
   WeeklyAvailabilityRow,
 } from "@/components/recruiting/WorkerAvailabilityCard";
-import { AiProfilerPanel } from "@/components/recruiting/AiProfilerPanel";
+import { AiProfilerPanel } from "@/components/dashboard/AiProfilerPanel";
 import type { AiProfilerResponse } from "@/types/ai-profiler";
 import { Check, List, Search, Skull, Star } from "lucide-react";
 

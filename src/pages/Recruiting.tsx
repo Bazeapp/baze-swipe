@@ -1307,56 +1307,42 @@ const Recruiting = () => {
 
   const sendOverrideFeedback = useCallback(
     async (context: OverrideContext, reason: string) => {
-      const webhookUrl =
-        import.meta.env.VITE_DECISION_OVERRIDE_WEBHOOK_URL?.trim();
-      if (!webhookUrl) {
-        console.warn(
-          "DECISION_OVERRIDE_WEBHOOK non configurato. Salto l'invio feedback."
-        );
-        return;
-      }
-      const payload = {
-        Recruiter:
-          selectedRecruiterName ||
-          selectedRecruiter?.nome ||
-          "Recruiter non specificato",
-        lavoratore_id:
-          context.worker.lavoratore_record_id ??
-          context.worker.id ??
-          "ID mancante",
-        processo_res_id: context.worker.processo_res ?? "Processo non definito",
-        "AI Parser choice": context.aiDecision,
-        "Recruiter choice": context.recruiterDecision,
-        Reason: reason,
-      };
-
       try {
-        console.log("Invio feedback decision override:", payload);
-        const response = await fetch(webhookUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-        if (!response.ok) {
-          const body = await response.text();
-          throw new Error(
-            `Webhook status ${response.status}: ${body || "no body"}`
-          );
+        const workerId =
+          context.worker.lavoratore_record_id ?? context.worker.id ?? null;
+        const processoResId = context.worker.processo_res ?? null;
+        if (!workerId || !processoResId) {
+          console.warn("Override feedback non inserito: ID lavoratore o processo mancante");
+          return;
         }
-        console.log("Feedback decision override inviato con successo");
+
+        const recruiterId =
+          selectedRecruiter?.id || supabaseSession?.user?.id || null;
+
+        const { error } = await supabase.from("decision_overrides").insert({
+          recruiter_id: recruiterId,
+          recruiter_name: selectedRecruiterName || selectedRecruiter?.nome || null,
+          worker_id: workerId,
+          processo_res_id: processoResId,
+          ai_decision: context.aiDecision ?? null,
+          recruiter_decision: context.recruiterDecision,
+          reason: reason || null,
+        });
+
+        if (error) {
+          throw error;
+        }
       } catch (error) {
-        console.error("Errore invio feedback override AI:", error);
+        console.error("Errore salvataggio decision override su Supabase:", error);
         toast({
           title: "Segnalazione non inviata",
           description:
-            "Impossibile inviare il feedback all'AI. La decisione è stata comunque salvata.",
+            "Impossibile salvare il feedback di override. La decisione è stata comunque salvata.",
           variant: "destructive",
         });
       }
     },
-    [selectedRecruiterName, selectedRecruiter, toast]
+    [selectedRecruiterName, selectedRecruiter, toast, supabaseSession]
   );
 
   const handleDecisionClick = useCallback(

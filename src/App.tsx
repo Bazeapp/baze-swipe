@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Recruiting from "./pages/Recruiting";
 import NotFound from "./pages/NotFound";
+import AiProfilerDashboard from "./pages/AiProfilerDashboard";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/auth" replace />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/ai-profiler-dashboard" element={<AiProfilerDashboard />} />
           <Route path="/recruiting" element={<Recruiting />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

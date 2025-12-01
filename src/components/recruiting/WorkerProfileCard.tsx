@@ -108,7 +108,12 @@ export function WorkerProfileCard({
       sections[areaKey].push({ title, content, markdown: options?.markdown });
     };
 
-    if (lavoratore.travel_time_tra_cap) {
+    const travelTimeRaw = lavoratore.travel_time_tra_cap;
+    const hasTravelTime =
+      travelTimeRaw !== null &&
+      travelTimeRaw !== undefined &&
+      String(travelTimeRaw).trim() !== "";
+    if (hasTravelTime) {
       addSection(
         "travel_time",
         "Tempo di viaggio dichiarato",

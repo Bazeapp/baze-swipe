@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchCandidates,
@@ -204,10 +204,16 @@ const Recruiting = () => {
   const [pendingTotal, setPendingTotal] = useState(0);
   const [hasStartedSelection, setHasStartedSelection] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { processoRes: slugProcessoRes, workerId: slugWorkerId } = useParams<{
+    processoRes?: string;
+    workerId?: string;
+  }>();
   const selectedRecruiterIdRef = useRef<string>("");
   const selectedProcessoRef = useRef<string>("");
   const lastLoadedKeyRef = useRef<string | null>(null);
   const hasAutoStartedRef = useRef(false);
+  const slugAppliedRef = useRef(false);
   const { toast } = useToast();
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
@@ -698,6 +704,21 @@ const Recruiting = () => {
     };
     void checkSession();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!hasStartedSelection) return;
+    if (!selectedProcesso) return;
+    const currentWorker = lavoratori[currentIndex];
+    const workerIdentifier =
+      (currentWorker && (getWorkerIdentifier(currentWorker) ?? currentWorker.id)) ||
+      null;
+    const desiredPath = workerIdentifier
+      ? `/recruiting/${selectedProcesso}/${workerIdentifier}`
+      : `/recruiting/${selectedProcesso}`;
+    if (location.pathname !== desiredPath) {
+      navigate(desiredPath, { replace: true });
+    }
+  }, [hasStartedSelection, selectedProcesso, lavoratori, currentIndex, location.pathname, navigate]);
 
   // Profiling now happens in bulk per processo (see syncProfilerForProcess)
   const cleanFeedbackText = (input: unknown) => {
@@ -1285,6 +1306,33 @@ const Recruiting = () => {
   ]);
 
   useEffect(() => {
+    if (slugAppliedRef.current) return;
+    if (!slugProcessoRes) return;
+    if (recruiters.length === 0 || Object.keys(processoInfo).length === 0) {
+      return;
+    }
+    const targetRecruiter = recruiters.find((r) =>
+      r.processIds.includes(slugProcessoRes)
+    );
+    if (!targetRecruiter) return;
+    slugAppliedRef.current = true;
+    if (selectedRecruiterId !== targetRecruiter.id) {
+      setSelectedRecruiterId(targetRecruiter.id);
+    }
+    if (selectedProcesso !== slugProcessoRes) {
+      setSelectedProcesso(slugProcessoRes);
+    }
+    handleStartSelection(targetRecruiter, slugProcessoRes);
+  }, [
+    slugProcessoRes,
+    recruiters,
+    processoInfo,
+    selectedRecruiterId,
+    selectedProcesso,
+    handleStartSelection,
+  ]);
+
+  useEffect(() => {
     checkAuth();
     if (recruiters.length === 0 || Object.keys(processoInfo).length === 0) {
       loadRecruiterData();
@@ -1320,6 +1368,18 @@ const Recruiting = () => {
     loadLavoratori,
     lavoratori.length,
   ]);
+
+  useEffect(() => {
+    if (!slugWorkerId) return;
+    if (!hasStartedSelection) return;
+    const targetIndex = lavoratori.findIndex((w) => {
+      const identifier = getWorkerIdentifier(w) ?? w.id;
+      return identifier === slugWorkerId;
+    });
+    if (targetIndex >= 0 && targetIndex !== currentIndex) {
+      setCurrentIndex(targetIndex);
+    }
+  }, [slugWorkerId, lavoratori, currentIndex, hasStartedSelection]);
   const processDecision = useCallback(
     async ({
       worker,

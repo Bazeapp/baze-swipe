@@ -23,6 +23,7 @@ const App = () => (
           <Route path="/" element={<Navigate to="/auth" replace />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/ai-profiler-dashboard" element={<AiProfilerDashboard />} />
+          <Route path="/recruiting/:processoRes/:workerId?" element={<Recruiting />} />
           <Route path="/recruiting" element={<Recruiting />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

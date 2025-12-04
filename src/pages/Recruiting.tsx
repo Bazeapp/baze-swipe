@@ -24,7 +24,6 @@ import { FeedbackIssueDialog } from "@/components/recruiting/FeedbackIssueDialog
 import { WorkerSelectionsSheet } from "@/components/recruiting/WorkerSelectionsSheet";
 import { RecruiterFeedbackCard } from "@/components/recruiting/RecruiterFeedbackCard";
 import { RecruitingLoadingState } from "@/components/recruiting/RecruitingLoadingState";
-import { RecruitingEmptyState } from "@/components/recruiting/RecruitingEmptyState";
 import { DecisionOverrideDialog } from "@/components/recruiting/DecisionOverrideDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -207,6 +206,7 @@ const Recruiting = () => {
   const navigate = useNavigate();
   const selectedRecruiterIdRef = useRef<string>("");
   const selectedProcessoRef = useRef<string>("");
+  const lastLoadedKeyRef = useRef<string | null>(null);
   const hasAutoStartedRef = useRef(false);
   const { toast } = useToast();
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
@@ -464,6 +464,8 @@ const Recruiting = () => {
       setProfilerSyncing(true);
       setProfilerBatchId(null);
       setProfilerTotal(uniqueWorkerIds.length);
+      setPendingTotal(uniqueWorkerIds.length);
+      setPendingCount(uniqueWorkerIds.length);
       setProfilerProgress({
         done: 0,
         pending: uniqueWorkerIds.length,
@@ -485,6 +487,7 @@ const Recruiting = () => {
         setProfilerTotal(totalCount);
         setProfilerProgress((prev) => ({ ...prev, pending: totalCount }));
         let sentCount = 0;
+        const resultsMap: Record<string, AiProfilerResponse> = {};
 
         for (const chunk of chunks) {
           const payload = {
@@ -517,6 +520,43 @@ const Recruiting = () => {
           lastBatchId =
             (triggerJson && (triggerJson.batch_id as string)) || lastBatchId;
           sentCount += chunk.length;
+
+          // Process immediate results returned by the function (batch of 5)
+          const chunkResults = Array.isArray((triggerJson as any)?.results)
+            ? (triggerJson as any).results
+            : [];
+          for (const entry of chunkResults) {
+            const workerId = entry?.worker_id;
+            const result = entry?.result as AiProfilerResponse | undefined;
+            const key = getAiProfilerKey(workerId, processoResId);
+            if (key && result) {
+              resultsMap[key] = result;
+            }
+          }
+
+          if (chunkResults.length > 0) {
+            const mappedEntries = Object.fromEntries(
+              Object.entries(resultsMap).map(([key, value]) => [
+                key,
+                { data: value } as AiProfilerCacheEntry,
+              ])
+            );
+            setAiProfilerCache((prev) => ({ ...prev, ...mappedEntries }));
+          }
+
+          const doneCount = Object.keys(resultsMap).length;
+          const pendingCountValue = Math.max(totalCount - doneCount, 0);
+          setPendingTotal(totalCount);
+          setPendingCount(pendingCountValue);
+          setProfilerProgress((prev) => ({
+            ...prev,
+            done: doneCount,
+            pending: pendingCountValue,
+            running: Math.max(sentCount - doneCount, 0),
+            error: 0,
+            skipped: 0,
+          }));
+
           setProfilerProgress((prev) => ({
             ...prev,
             running: Math.min(sentCount, totalCount),
@@ -527,7 +567,6 @@ const Recruiting = () => {
 
         const maxAttempts = 12;
         const delayMs = 1000;
-        const resultsMap: Record<string, AiProfilerResponse> = {};
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const supa: any = supabase;
@@ -557,11 +596,13 @@ const Recruiting = () => {
           }
           setProfilerProgress({
             done: Object.keys(resultsMap).length,
-            pending: Math.max(totalCount - sentCount, 0),
+            pending: Math.max(totalCount - Object.keys(resultsMap).length, 0),
             running: Math.max(sentCount - Object.keys(resultsMap).length, 0),
             error: 0,
             skipped: 0,
           });
+          setPendingTotal(totalCount);
+          setPendingCount(Math.max(totalCount - Object.keys(resultsMap).length, 0));
           if (Object.keys(resultsMap).length >= workerIds.length) {
             break;
           }
@@ -1142,6 +1183,7 @@ const Recruiting = () => {
       return;
     }
     setSelectedProcesso(value);
+    lastLoadedKeyRef.current = null;
     setLavoratori([]);
     setLoading(true);
     setCurrentIndex(0);
@@ -1154,6 +1196,7 @@ const Recruiting = () => {
       }
       const recruiter = recruiters.find((r) => r.id === recruiterId);
       if (!recruiter) return;
+      lastLoadedKeyRef.current = null;
       setSelectedRecruiterId(recruiterId);
       const firstProcess = recruiter.processIds[0] ?? "";
       setSelectedProcesso(firstProcess);
@@ -1262,6 +1305,12 @@ const Recruiting = () => {
       return;
     }
 
+    const fetchKey = `${selectedRecruiter.id}:${selectedProcesso}`;
+    if (lastLoadedKeyRef.current === fetchKey && lavoratori.length > 0) {
+      return;
+    }
+    lastLoadedKeyRef.current = fetchKey;
+
     loadLavoratori(selectedRecruiter, selectedProcesso);
   }, [
     hasStartedSelection,
@@ -1269,6 +1318,7 @@ const Recruiting = () => {
     selectedProcesso,
     processoInfo,
     loadLavoratori,
+    lavoratori.length,
   ]);
   const processDecision = useCallback(
     async ({
@@ -1862,9 +1912,6 @@ const Recruiting = () => {
     return matchValue ? String(matchValue) : null;
   }, [currentLavoratore]);
 
-  if (!loading && hasStartedSelection && !currentLavoratore) {
-    return <RecruitingEmptyState />;
-  }
   const showLayout = hasStartedSelection || loading;
   const combinedFamilyAddress = currentLavoratore
     ? [
@@ -1981,9 +2028,9 @@ const Recruiting = () => {
 
                 <div className="lg:col-span-9 flex flex-col gap-4">
                   <div className="grid grid-cols-1 lg:grid-cols-9 gap-4">
-                    {loading || !currentLavoratore ? (
+                    {loading ? (
                       <RecruitingLoadingState />
-                    ) : (
+                    ) : currentLavoratore ? (
                       <>
                         <WorkerProfileCard
                           className="lg:col-span-6"
@@ -2036,6 +2083,15 @@ const Recruiting = () => {
                           </div>
                         </div>
                       </>
+                    ) : (
+                      <Card className="lg:col-span-9 border-border">
+                        <CardContent className="p-10 flex flex-col items-center gap-3 text-center">
+                          <div className="text-2xl font-semibold">GoodJob</div>
+                          <div className="text-muted-foreground">
+                            Hai finito. Non ci sono altre candidature per questo processo.
+                          </div>
+                        </CardContent>
+                      </Card>
                     )}
                   </div>
                 </div>

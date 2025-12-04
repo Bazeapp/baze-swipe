@@ -374,25 +374,13 @@ export async function fetchRecruiterProcesses(): Promise<{
 }
 
 async function fetchCandidatesInternal(
-  processoIdentifierFilter?: string
+  processoIdentifierFilter: string
 ): Promise<AirtableRecord[]> {
-  const lavoratoriFormulaParts: string[] = [];
-  if (processoIdentifierFilter) {
-    const processoEscaped = escapeFormulaValue(processoIdentifierFilter);
-    lavoratoriFormulaParts.push(
-      `FIND('${processoEscaped}', ARRAYJOIN({processo_res}, ','))>0`
-    );
-  }
-
-  lavoratoriFormulaParts.push(
-    "OR({stato_selezione}='Candidato - Good fit',{stato_selezione}='Prospetto',{stato_selezione}='Candidato - Poor fit')"
-  );
+  const processoEscaped = escapeFormulaValue(processoIdentifierFilter);
 
   const lavoratoriQuery: Record<string, string | undefined> = {
     pageSize: '60',
-    filterByFormula: lavoratoriFormulaParts.length === 1
-      ? lavoratoriFormulaParts[0]
-      : `AND(${lavoratoriFormulaParts.join(',')})`
+    filterByFormula: `AND(FIND('${processoEscaped}', ARRAYJOIN({processo_res}, ','))>0,OR({stato_selezione}='Candidato - Good fit',{stato_selezione}='Prospetto',{stato_selezione}='Candidato - Poor fit'))`
   };
 
   const records = await fetchAirtableView(
@@ -406,7 +394,7 @@ async function fetchCandidatesInternal(
 
   console.log(
     '[fetchCandidatesInternal] processo filter:',
-    processoIdentifierFilter ?? '(none)',
+    processoIdentifierFilter,
     '| total records:',
     records.length
   );
@@ -418,23 +406,12 @@ export async function fetchCandidates(
   processoIdentifierFilter?: string,
   recruiterIdFilter?: string
 ): Promise<Lavoratore[]> {
-  let lavoratoriRecords = await fetchCandidatesInternal(processoIdentifierFilter);
-  if (lavoratoriRecords.length === 0 && processoIdentifierFilter) {
-    // Fallback senza filtro processo per evitare empty state se il codice processo non corrisponde
-    lavoratoriRecords = await fetchCandidatesInternal(undefined);
+  if (!processoIdentifierFilter) {
+    console.warn('[fetchCandidates] processoIdentifierFilter mancante');
+    return [];
   }
-  if (lavoratoriRecords.length === 0) {
-    // Fallback ulteriore: togliamo anche il filtro sugli stati, lasciamo solo sort
-    console.log('[fetchCandidates] fallback senza filtri: eseguo fetch completo');
-    lavoratoriRecords = await fetchAirtableView(
-      'lavoratori_selezionati',
-      '[🔒] Lovable Tinder Database',
-      undefined,
-      [
-        { field: 'travel_time_tra_cap', direction: 'asc' }
-      ]
-    );
-  }
+
+  const lavoratoriRecords = await fetchCandidatesInternal(processoIdentifierFilter);
 
   console.log(
     '[fetchCandidates] totale records dopo fallback:',

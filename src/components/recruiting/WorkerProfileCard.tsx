@@ -14,7 +14,7 @@ import type {
   AvailabilitySummarySlot,
   WeeklyAvailabilityRow,
 } from "@/components/recruiting/WorkerAvailabilityCard";
-import { AiProfilerPanel } from "@/components/dashboard/AiProfilerPanel";
+import { AiProfilerPanel } from "@/components/recruiting/AiProfilerPanel";
 import type { AiProfilerResponse } from "@/types/ai-profiler";
 import { Check, List, Search, Skull, Star } from "lucide-react";
 
@@ -37,6 +37,10 @@ interface AiProfilerProps {
   onReload: () => void;
   onReparse?: () => void;
   reparseDisabled?: boolean;
+  travelAddresses?: {
+    worker?: string | null;
+    family?: string | null;
+  };
 }
 
 interface WorkerProfileCardProps {

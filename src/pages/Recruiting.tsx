@@ -281,9 +281,7 @@ const Recruiting = () => {
         .filter((id) => id.length > 0);
       if (!processoResId || validIds.length === 0) return;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const supa: any = supabase;
-        const { error } = await supa
+        const { error } = await supabase
           .from("ai_profiler_results")
           .update({ status: "reviewed" })
           .eq("processo_res_id", processoResId)
@@ -360,9 +358,7 @@ const Recruiting = () => {
       const uniqueWorkerIds = Array.from(new Set(workerIds));
       if (!processoResId || uniqueWorkerIds.length === 0) return;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const supa: any = supabase;
-      const { data, error } = await supa
+      const { data, error } = await supabase
         .from("ai_profiler_results")
         .select(
           "worker_id,processo_res_id,raw_result,areas,reason,decision,score,version,created_at,status"
@@ -390,9 +386,9 @@ const Recruiting = () => {
           if (parsed?.data && parsed.key) {
             resultsMap[parsed.key] = { data: parsed.data };
             seenWorkers.add(workerId);
-            const rawResult = parsed.data as any;
+            const rawResult = parsed.data as AiProfilerResponse | null;
             const reasonText = String(
-              rawResult?.reason || (row as any)?.reason || ""
+              rawResult?.reason ?? row.reason ?? ""
             ).toLowerCase();
             if (reasonText.includes("profilazione non ancora eseguita")) {
               pendingCounter += 1;
@@ -522,14 +518,21 @@ const Recruiting = () => {
             console.error("Trigger profiler bulk failed", body);
             throw new Error(body || "Errore trigger bulk profiler");
           }
-          const triggerJson = await triggerResponse.json().catch(() => ({}));
-          lastBatchId =
-            (triggerJson && (triggerJson.batch_id as string)) || lastBatchId;
+          const triggerJson = (await triggerResponse
+            .json()
+            .catch(() => ({}))) as {
+            batch_id?: string;
+            results?: Array<{
+              worker_id?: string;
+              result?: AiProfilerResponse;
+            }>;
+          };
+          lastBatchId = triggerJson.batch_id || lastBatchId;
           sentCount += chunk.length;
 
           // Process immediate results returned by the function (batch of 5)
-          const chunkResults = Array.isArray((triggerJson as any)?.results)
-            ? (triggerJson as any).results
+          const chunkResults = Array.isArray(triggerJson?.results)
+            ? triggerJson.results
             : [];
           for (const entry of chunkResults) {
             const workerId = entry?.worker_id;
@@ -574,9 +577,7 @@ const Recruiting = () => {
         const maxAttempts = 12;
         const delayMs = 1000;
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const supa: any = supabase;
-          const { data, error } = await supa
+          const { data, error } = await supabase
             .from("ai_profiler_results")
             .select(
               "worker_id,processo_res_id,raw_result,areas,reason,decision,score,version"
@@ -693,7 +694,7 @@ const Recruiting = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -810,32 +811,34 @@ const Recruiting = () => {
     return `${value} ${value === 1 ? "anno" : "anni"}`;
   };
 
-  const statusColorLookup: Record<
-    string,
-    "blu" | "giallo" | "verde" | "rosso" | "grigio" | "default"
-  > = {
-    prospetto: "blu",
-    "candidato - poor fit": "blu",
-    "candidato - good fit": "blu",
-    "da colloquiare": "blu",
-    "fare ricerca": "blu",
-    "da assegnare": "giallo",
-    "non risponde": "giallo",
-    "invitato a colloquio": "giallo",
-    selezionato: "giallo",
-    "selezione inviata, in attesa di feedback": "giallo",
-    "inviato al cliente": "verde",
-    "colloquio schedulato": "verde",
-    "colloquio fatto": "verde",
-    "prova con cliente": "verde",
-    "in prova con lavoratore": "verde",
-    "fase di colloqui": "verde",
-    match: "verde",
-    "no match": "rosso",
-    archivio: "grigio",
-    "non selezionato": "grigio",
-    "nascosto - oot": "grigio",
-  };
+  const statusColorLookup = useMemo<
+    Record<string, "blu" | "giallo" | "verde" | "rosso" | "grigio" | "default">
+  >(
+    () => ({
+      prospetto: "blu",
+      "candidato - poor fit": "blu",
+      "candidato - good fit": "blu",
+      "da colloquiare": "blu",
+      "fare ricerca": "blu",
+      "da assegnare": "giallo",
+      "non risponde": "giallo",
+      "invitato a colloquio": "giallo",
+      selezionato: "giallo",
+      "selezione inviata, in attesa di feedback": "giallo",
+      "inviato al cliente": "verde",
+      "colloquio schedulato": "verde",
+      "colloquio fatto": "verde",
+      "prova con cliente": "verde",
+      "in prova con lavoratore": "verde",
+      "fase di colloqui": "verde",
+      match: "verde",
+      "no match": "rosso",
+      archivio: "grigio",
+      "non selezionato": "grigio",
+      "nascosto - oot": "grigio",
+    }),
+    []
+  );
 
   type StatusColorKey =
     | "blu"
@@ -948,7 +951,7 @@ const Recruiting = () => {
       label: string;
       statuses: Array<[string, WorkerSelection[]]>;
     }>;
-  }, [workerSelections, getStatusColorKey]);
+  }, [workerSelections, getStatusColorKey, colorPriority, colorLabels]);
 
   const getSelectionTitle = useCallback(
     (selection: WorkerSelection) => {
@@ -1037,6 +1040,14 @@ const Recruiting = () => {
       recruiter: RecruiterProcessSummary | undefined,
       processoId: string
     ) => {
+      const fetchKey = recruiter && processoId ? `${recruiter.id}:${processoId}` : null;
+      if (fetchKey && lastLoadedKeyRef.current === fetchKey && loading) {
+        return;
+      }
+      if (fetchKey) {
+        lastLoadedKeyRef.current = fetchKey;
+      }
+
       if (!recruiter || !processoId) {
         console.log("[loadLavoratori] recruiter o processo mancante", {
           recruiterPresent: Boolean(recruiter),
@@ -1453,6 +1464,7 @@ const Recruiting = () => {
         const recruiterId =
           selectedRecruiter?.id || supabaseSession?.user?.id || null;
 
+        // @ts-expect-error decision_overrides non tipizzata nello schema generato
         const { error } = await supabase.from("decision_overrides").insert({
           recruiter_id: recruiterId,
           recruiter_name: selectedRecruiterName || selectedRecruiter?.nome || null,
@@ -1753,9 +1765,7 @@ const Recruiting = () => {
       const attempts = 6;
       const delayMs = 1000;
       for (let attempt = 0; attempt < attempts; attempt++) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const supa: any = supabase;
-        const { data, error } = await supa
+        const { data, error } = await supabase
           .from("ai_profiler_results")
           .select(
             "worker_id,processo_res_id,raw_result,areas,reason,decision,score,version,created_at,status"
@@ -2131,6 +2141,21 @@ const Recruiting = () => {
                             onReload: handleReloadAiProfiler,
                             onReparse: handleRetriggerProfiler,
                             reparseDisabled: profilerRetriggering,
+                            travelAddresses: {
+                              worker:
+                                typeof currentLavoratore?.indirizzo_lavoratore ===
+                                "string"
+                                  ? currentLavoratore.indirizzo_lavoratore
+                                  : Array.isArray(
+                                      currentLavoratore?.indirizzo_lavoratore
+                                    )
+                                  ? String(
+                                      currentLavoratore?.indirizzo_lavoratore?.[0] ??
+                                        ""
+                                    )
+                                  : null,
+                              family: combinedFamilyAddress || null,
+                            },
                           }}
                         />
 

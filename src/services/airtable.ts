@@ -271,6 +271,7 @@ export interface WorkerSelection {
   statoProcesso: string | null;
   statoSelezione: string | null;
   recruiterId: string | null;
+  orari: string | null;
 }
 
 export async function fetchRecruiterProcesses(): Promise<{
@@ -762,6 +763,24 @@ export async function fetchWorkerSelections(
     const selectionStatus = Array.isArray(selectionStatusRaw)
       ? selectionStatusRaw[0]
       : selectionStatusRaw;
+    const annuncioOrarioRaw = fields.annuncio_orario_di_lavoro;
+    const annuncioOrario = Array.isArray(annuncioOrarioRaw)
+      ? annuncioOrarioRaw[0]
+      : annuncioOrarioRaw;
+    const weeklyHoursRaw =
+      fields.ore_settimanale_ricerca ||
+      fields.ore_settimanali ||
+      fields.ore_settimanali_ricerca;
+    const weeklyHours = Array.isArray(weeklyHoursRaw)
+      ? weeklyHoursRaw[0]
+      : weeklyHoursRaw;
+    const orari = annuncioOrario
+      ? weeklyHours
+        ? `${annuncioOrario} · ${weeklyHours}h/settimana`
+        : annuncioOrario
+      : weeklyHours
+      ? `${weeklyHours}h/settimana`
+      : null;
 
     return {
       id: record.id,
@@ -770,6 +789,7 @@ export async function fetchWorkerSelections(
       statoProcesso: stato ? String(stato) : null,
       statoSelezione: selectionStatus ? String(selectionStatus) : null,
       recruiterId: recruiterId ? String(recruiterId) : null,
+      orari: orari ? String(orari) : null,
     };
   });
 }

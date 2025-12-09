@@ -11,6 +11,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import type { WorkerSelection } from "@/services/airtable";
 
@@ -73,7 +75,10 @@ export function WorkerSelectionsSheet({
                     >
                       {label}
                     </div>
-                    <Accordion type="multiple" className="border-t border-border">
+                    <Accordion
+                      type="multiple"
+                      className="border-t border-border"
+                    >
                       {statuses.map(([statusLabel, selections]) => (
                         <AccordionItem key={statusLabel} value={statusLabel}>
                           <AccordionTrigger className="px-3 py-2 text-sm font-medium hover:bg-muted/50">
@@ -90,22 +95,51 @@ export function WorkerSelectionsSheet({
                           </AccordionTrigger>
                           <AccordionContent className="px-3 pb-3 space-y-2">
                             {selections.map((selection) => (
-                              <div
+                              <Card
                                 key={selection.id}
-                                className="p-3 border border-border rounded-lg text-sm bg-background"
+                                className="bg-card/80 border-border shadow-sm"
                               >
-                                <div className="font-medium text-foreground">
-                                  {getSelectionTitle(selection)}
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Stato processo:{" "}
-                                  {selection.statoProcesso || "N/D"}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Stato selezione:{" "}
-                                  {selection.statoSelezione || "N/D"}
-                                </p>
-                              </div>
+                                <CardHeader className="p-3 pb-2">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="font-medium text-foreground text-sm">
+                                      {getSelectionTitle(selection)}
+                                    </div>
+                                  </div>
+                                  {selection.orari && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      ⏱️ {selection.orari}
+                                    </p>
+                                  )}
+                                  {(selection.processoTitle ||
+                                    selection.processoId) && (
+                                    <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                                      {selection.processoId && (
+                                        <span className="block text-muted-foreground/80">
+                                          ID: {selection.processoId}
+                                        </span>
+                                      )}
+                                    </p>
+                                  )}
+                                </CardHeader>
+                                <CardContent className="p-3 pt-0">
+                                  <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                                    <Badge
+                                      variant="outline"
+                                      className="border-border text-foreground bg-muted/50"
+                                    >
+                                      Stato processo:{" "}
+                                      {selection.statoProcesso || "N/D"}
+                                    </Badge>
+                                    <Badge
+                                      variant="outline"
+                                      className="border-border text-foreground bg-muted/50"
+                                    >
+                                      Selezione:{" "}
+                                      {selection.statoSelezione || "N/D"}
+                                    </Badge>
+                                  </div>
+                                </CardContent>
+                              </Card>
                             ))}
                           </AccordionContent>
                         </AccordionItem>

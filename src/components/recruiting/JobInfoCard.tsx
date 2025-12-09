@@ -22,6 +22,7 @@ interface JobInfoCardProps {
   mapDestination?: string;
   extraReservedInfo?: string;
   animalsPresenceInfo?: string;
+  sessoRichiesto?: string | null;
   onSelectProcess: (value: string) => void;
 }
 
@@ -38,6 +39,7 @@ export function JobInfoCard({
   mapDestination,
   extraReservedInfo,
   animalsPresenceInfo,
+  sessoRichiesto,
   onSelectProcess,
 }: JobInfoCardProps) {
   const renderProcessLabel = (processoId: string) => {
@@ -57,16 +59,16 @@ export function JobInfoCard({
   return (
     <Card
       className={cn(
-        "border-border hover:shadow-[var(--shadow-hover)] transition-shadow",
+        "border-border hover:shadow-[var(--shadow-hover)] transition-shadow h-full",
         className
       )}
     >
-      <CardContent className="p-5 space-y-4">
+      <CardContent className="p-5 space-y-4 h-full">
         <h2 className="text-base font-semibold text-foreground mb-4">
           Ricerca attiva
         </h2>
 
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[calc(100vh-10rem)] overflow-y-auto pr-2">
           <div>
             <Select
               value={selectedProcesso || "no-processes"}
@@ -94,7 +96,9 @@ export function JobInfoCard({
           {annuncioZona && (
             <div>
               <label className="text-xs font-semibold text-primary">ZONA</label>
-              <p className="mt-1 text-xs">{annuncioZona}</p>
+              <p className="mt-1 text-xs break-words whitespace-pre-line">
+                {annuncioZona}
+              </p>
             </div>
           )}
 
@@ -103,7 +107,9 @@ export function JobInfoCard({
               <label className="text-xs font-semibold text-primary">
                 ORARI
               </label>
-              <p className="mt-1 text-xs">{annuncioOrario}</p>
+              <p className="mt-1 text-xs break-words whitespace-pre-line">
+                {annuncioOrario}
+              </p>
             </div>
           )}
 
@@ -112,7 +118,20 @@ export function JobInfoCard({
               <label className="text-xs font-semibold text-primary">
                 FAMIGLIA
               </label>
-              <p className="mt-1 text-xs">{annuncioFamiglia}</p>
+              <p className="mt-1 text-xs break-words whitespace-pre-line">
+                {annuncioFamiglia}
+              </p>
+            </div>
+          )}
+
+          {sessoRichiesto && (
+            <div>
+              <label className="text-xs font-semibold text-primary">
+                GENERE RICHIESTO
+              </label>
+              <p className="mt-1 text-xs break-words whitespace-pre-line">
+                {sessoRichiesto}
+              </p>
             </div>
           )}
 
@@ -121,7 +140,7 @@ export function JobInfoCard({
               <label className="text-xs font-semibold text-primary">
                 INDIRIZZO
               </label>
-              <p className="mt-1 text-xs whitespace-pre-line">
+              <p className="mt-1 text-xs whitespace-pre-line break-words">
                 {combinedFamilyAddress || mapDestination}
               </p>
             </div>
@@ -132,7 +151,7 @@ export function JobInfoCard({
               <label className="text-xs font-semibold text-primary">
                 INFO AGGIUNTIVE
               </label>
-              <p className="mt-1 text-xs whitespace-pre-line">
+              <p className="mt-1 text-xs whitespace-pre-line break-words">
                 {extraReservedInfo}
               </p>
             </div>
@@ -143,7 +162,7 @@ export function JobInfoCard({
               <label className="text-xs font-semibold text-primary">
                 PRESENZA ANIMALI
               </label>
-              <p className="mt-1 text-xs whitespace-pre-line">
+              <p className="mt-1 text-xs whitespace-pre-line break-words">
                 {animalsPresenceInfo}
               </p>
             </div>
@@ -154,7 +173,7 @@ export function JobInfoCard({
               <label className="text-xs font-semibold text-primary">
                 MANSIONI
               </label>
-              <p className="mt-1 whitespace-pre-line text-xs">
+              <p className="mt-1 whitespace-pre-line text-xs break-words">
                 {mansioniRichieste}
               </p>
             </div>

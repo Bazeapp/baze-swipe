@@ -51,6 +51,7 @@ export interface Lavoratore {
   riassunto_profilo_breve: string | null;
   intervista_llm_transcript_history: string | null;
   descrizione_ricerca_famiglia: string | null;
+  sesso_processo_res: string | null;
   rating: string | null;
   documenti_in_regola_lavoratore: string | null;
   stati_verifica_documento: string | null;
@@ -526,6 +527,13 @@ export async function fetchCandidates(
       typeof ratingValue === 'string' && ratingValue.trim().length > 0
         ? ratingValue.trim().toLowerCase()
         : null;
+    const sessoProcessoResRaw =
+      fields.sesso_processo_res ||
+      fields['sesso_processo_res (from processo_res)'] ||
+      fields['sesso (from processo_res)'];
+    const sessoProcessoRes = Array.isArray(sessoProcessoResRaw)
+      ? sessoProcessoResRaw[0]
+      : sessoProcessoResRaw || null;
     const documentsStatusRaw = fields.documenti_in_regola_lavoratore;
     const documentsStatus = Array.isArray(documentsStatusRaw)
       ? documentsStatusRaw[0]
@@ -589,6 +597,7 @@ export async function fetchCandidates(
           ? fields['descrizione_ricerca_famiglia (from processo_res)'][0]
           : fields['descrizione_ricerca_famiglia (from processo_res)']
         : null,
+      sesso_processo_res: sessoProcessoRes,
       rating: normalizedRating,
       documenti_in_regola_lavoratore: documentsStatus
         ? String(documentsStatus)

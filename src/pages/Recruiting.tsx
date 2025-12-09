@@ -2091,6 +2091,7 @@ const Recruiting = () => {
                       mapDestination={mapDestination}
                       extraReservedInfo={extraReservedInfo}
                       animalsPresenceInfo={animalsPresenceInfo}
+                      sessoRichiesto={currentLavoratore?.sesso_processo_res}
                       onSelectProcess={handleProcessSelect}
                     />
                   </div>

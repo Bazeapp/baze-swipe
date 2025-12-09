@@ -113,7 +113,7 @@ const HIGHLIGHT_SECTIONS: Record<string, string> = {
 };
 
 const AREA_CONTENT_RULES: Record<string, string[]> = {
-  esperienze: ["Esperienze dichiarate", "Dettaglio esperienze"],
+  esperienze: ["Esperienze dichiarate", "Dettaglio esperienze", "Competenze"],
   referenze: ["Referenze"],
   travel_time: ["Tempo di viaggio dichiarato", "Indirizzi", "Percorso"],
   disponibilita: ["Fascia"],
@@ -414,8 +414,33 @@ export function AiProfilerPanel({
                     }
                   );
 
-                  if (showAvailability) {
-                    addAccordionItem("Fascia", renderAvailabilityGrid(availabilityData));
+                    if (showAvailability) {
+                      addAccordionItem("Fascia", renderAvailabilityGrid(availabilityData));
+                    }
+
+                  if (key === "esperienze" && data?.context?.competenze) {
+                    const competenze = data.context.competenze as Record<string, unknown>;
+                    const entries = Object.entries(competenze).filter(
+                      ([, value]) => value !== null && value !== undefined && String(value).trim() !== ""
+                    );
+                    if (entries.length > 0) {
+                      addAccordionItem(
+                        "Competenze",
+                        <div className="space-y-1">
+                          {entries.map(([label, value]) => (
+                            <p
+                              key={label}
+                              className="text-sm text-foreground whitespace-pre-wrap leading-relaxed"
+                            >
+                              <span className="text-muted-foreground">
+                                {label.replace(/_/g, " ")}:
+                              </span>{" "}
+                              {String(value)}
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    }
                   }
 
                   if (key === "referenze") {

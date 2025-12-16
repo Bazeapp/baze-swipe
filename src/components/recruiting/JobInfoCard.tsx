@@ -8,6 +8,14 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { ProcessoInfo } from "@/services/airtable";
+import {
+  Clock,
+  Info,
+  List,
+  MapPin,
+  PawPrint,
+  Users,
+} from "lucide-react";
 
 interface JobInfoCardProps {
   className?: string;
@@ -42,13 +50,38 @@ export function JobInfoCard({
   sessoRichiesto,
   onSelectProcess,
 }: JobInfoCardProps) {
+  const toListItems = (value?: string | null) =>
+    (value || "")
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  const Section = ({
+    title,
+    Icon,
+    children,
+  }: {
+    title: string;
+    Icon: typeof MapPin;
+    children: React.ReactNode;
+  }) => (
+    <div className="border border-border/70 rounded-lg p-3 space-y-2 bg-muted/30">
+      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Icon className="w-4 h-4 text-primary" />
+        <span className="uppercase tracking-wide text-[11px] text-muted-foreground">
+          {title}
+        </span>
+      </div>
+      {children}
+    </div>
+  );
+
   const renderProcessLabel = (processoId: string) => {
     const info = processoInfo[processoId];
     if (!info) return processoId;
     const parts = [
       info.tipo_lavoro,
       info.tipo_rapporto,
-      info.momento_giornata,
       info.email_famiglia,
     ]
       .map((part) => part?.trim())
@@ -93,91 +126,91 @@ export function JobInfoCard({
             </Select>
           </div>
 
-          {annuncioZona && (
-            <div>
-              <label className="text-xs font-semibold text-primary">ZONA</label>
-              <p className="mt-1 text-xs break-words whitespace-pre-line">
-                {annuncioZona}
-              </p>
-            </div>
-          )}
+          <div className="space-y-3">
+            {(annuncioZona || mapDestination) && (
+              <Section title="Luogo" Icon={MapPin}>
+                <div className="space-y-1 text-xs text-foreground">
+                  {annuncioZona && (
+                    <div>
+                      <div className="font-semibold text-[11px] text-muted-foreground">
+                        Zona
+                      </div>
+                      <div className="break-words">{annuncioZona}</div>
+                    </div>
+                  )}
+                  {mapDestination && (
+                    <div>
+                      <div className="font-semibold text-[11px] text-muted-foreground">
+                        Indirizzo
+                      </div>
+                      <div className="break-words">
+                        {combinedFamilyAddress || mapDestination}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
 
-          {annuncioOrario && (
-            <div>
-              <label className="text-xs font-semibold text-primary">
-                ORARI
-              </label>
-              <p className="mt-1 text-xs break-words whitespace-pre-line">
-                {annuncioOrario}
-              </p>
-            </div>
-          )}
+            {annuncioOrario && (
+              <Section title="Orari" Icon={Clock}>
+                <p className="text-xs break-words">{annuncioOrario}</p>
+              </Section>
+            )}
 
-          {annuncioFamiglia && (
-            <div>
-              <label className="text-xs font-semibold text-primary">
-                FAMIGLIA
-              </label>
-              <p className="mt-1 text-xs break-words whitespace-pre-line">
-                {annuncioFamiglia}
-              </p>
-            </div>
-          )}
+            {(annuncioFamiglia || animalsPresenceInfo || sessoRichiesto) && (
+              <Section title="Famiglia" Icon={Users}>
+                <div className="space-y-2 text-xs">
+                  {annuncioFamiglia && (
+                    <div>
+                      <div className="font-semibold text-[11px] text-muted-foreground">
+                        Nucleo
+                      </div>
+                      <div className="break-words">{annuncioFamiglia}</div>
+                    </div>
+                  )}
+                  {animalsPresenceInfo && (
+                    <div>
+                      <div className="font-semibold text-[11px] text-muted-foreground">
+                        Animali
+                      </div>
+                      <div className="break-words">{animalsPresenceInfo}</div>
+                    </div>
+                  )}
+                  {sessoRichiesto && (
+                    <div>
+                      <div className="font-semibold text-[11px] text-muted-foreground">
+                        Genere richiesto
+                      </div>
+                      <div className="break-words whitespace-pre-line">
+                        {sessoRichiesto}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
 
-          {sessoRichiesto && (
-            <div>
-              <label className="text-xs font-semibold text-primary">
-                GENERE RICHIESTO
-              </label>
-              <p className="mt-1 text-xs break-words whitespace-pre-line">
-                {sessoRichiesto}
-              </p>
-            </div>
-          )}
+            {extraReservedInfo && toListItems(extraReservedInfo).length > 0 && (
+              <Section title="Info aggiuntive" Icon={Info}>
+                <ul className="mt-1 text-xs space-y-1 list-disc list-inside break-words">
+                  {toListItems(extraReservedInfo).map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </Section>
+            )}
 
-          {mapDestination && (
-            <div>
-              <label className="text-xs font-semibold text-primary">
-                INDIRIZZO
-              </label>
-              <p className="mt-1 text-xs whitespace-pre-line break-words">
-                {combinedFamilyAddress || mapDestination}
-              </p>
-            </div>
-          )}
-
-          {extraReservedInfo && (
-            <div>
-              <label className="text-xs font-semibold text-primary">
-                INFO AGGIUNTIVE
-              </label>
-              <p className="mt-1 text-xs whitespace-pre-line break-words">
-                {extraReservedInfo}
-              </p>
-            </div>
-          )}
-
-          {animalsPresenceInfo && (
-            <div>
-              <label className="text-xs font-semibold text-primary">
-                PRESENZA ANIMALI
-              </label>
-              <p className="mt-1 text-xs whitespace-pre-line break-words">
-                {animalsPresenceInfo}
-              </p>
-            </div>
-          )}
-
-          {mansioniRichieste && (
-            <div>
-              <label className="text-xs font-semibold text-primary">
-                MANSIONI
-              </label>
-              <p className="mt-1 whitespace-pre-line text-xs break-words">
-                {mansioniRichieste}
-              </p>
-            </div>
-          )}
+            {mansioniRichieste && toListItems(mansioniRichieste).length > 0 && (
+              <Section title="Mansioni" Icon={List}>
+                <ul className="mt-1 text-xs space-y-1 list-disc list-inside break-words">
+                  {toListItems(mansioniRichieste).map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </Section>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

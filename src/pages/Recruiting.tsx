@@ -1076,14 +1076,11 @@ const Recruiting = () => {
         return;
       }
 
-      const processoIdentifier =
-        processoDetails.record_id_processo_value || processoId;
-
       console.log("[loadLavoratori] start fetchCandidates", {
         recruiter: recruiter.nome,
         recruiterId: recruiter.id,
         processoId,
-        processoIdentifier,
+        processoIdentifier: processoId,
       });
       setProfilerStartedMap((prev) => ({ ...prev, [processoId]: false }));
       setLoading(true);
@@ -1091,7 +1088,7 @@ const Recruiting = () => {
       try {
         const candidates = await fetchCandidates(
           recruiter.nome,
-          processoIdentifier,
+          processoId,
           recruiter.id
         );
         console.log("[loadLavoratori] candidates length", candidates.length);
@@ -1983,24 +1980,25 @@ const Recruiting = () => {
   }, [currentLavoratore]);
 
   const showLayout = hasStartedSelection || loading;
-  const combinedFamilyAddress = currentLavoratore
-    ? [
-        currentLavoratore.indirizzo_famiglia?.trim(),
-        currentProcessoInfo?.luogo_indirizzo?.trim(),
-      ]
-        .filter(Boolean)
-        .join("\n")
-    : "";
+  const primaryFamilyAddress = "";
+  const combinedFamilyAddress =
+    currentProcessoInfo?.luogo_indirizzo?.trim() || "";
   const descrizioneRicercaLavoro =
     currentLavoratore?.descrizione_ricerca_famiglia?.trim() || "";
   const chiSono = currentLavoratore?.chi_sono?.trim() || "";
 
   const mapDestination =
-    combinedFamilyAddress || currentLavoratore?.indirizzo_famiglia || "";
+    combinedFamilyAddress || primaryFamilyAddress || "";
   const extraReservedInfo =
     currentProcessoInfo?.informazioni_extra_riservate?.trim() || "";
   const animalsPresenceInfo =
     currentProcessoInfo?.descrizione_animali_in_casa?.trim() || "";
+  const annuncioZona = currentProcessoInfo?.annuncio_zona?.trim() || "";
+  const annuncioOrario = currentProcessoInfo?.annuncio_orario?.trim() || "";
+  const annuncioFamiglia = currentProcessoInfo?.annuncio_famiglia?.trim() || "";
+  const mansioniRichieste =
+    currentProcessoInfo?.mansioni_richieste?.trim() || "";
+  const sessoRichiesto = currentProcessoInfo?.sesso_richiesto?.trim() || "";
   const experienceMarkdown = currentLavoratore?.riassunto_esperienze_completo
     ? cleanExperienceText(currentLavoratore.riassunto_esperienze_completo)
     : null;
@@ -2077,21 +2075,15 @@ const Recruiting = () => {
                       selectedProcesso={selectedProcesso}
                       processOptions={processOptions}
                       processoInfo={processoInfo}
-                      annuncioZona={
-                        currentLavoratore?.annuncio_luogo_riferimento_pubblico
-                      }
-                      annuncioOrario={
-                        currentLavoratore?.annuncio_orario_di_lavoro
-                      }
-                      annuncioFamiglia={
-                        currentLavoratore?.annuncio_nucleo_famigliare
-                      }
-                      mansioniRichieste={currentLavoratore?.mansioni_richieste}
+                      annuncioZona={annuncioZona}
+                      annuncioOrario={annuncioOrario}
+                      annuncioFamiglia={annuncioFamiglia}
+                      mansioniRichieste={mansioniRichieste}
                       combinedFamilyAddress={combinedFamilyAddress}
                       mapDestination={mapDestination}
                       extraReservedInfo={extraReservedInfo}
                       animalsPresenceInfo={animalsPresenceInfo}
-                      sessoRichiesto={currentLavoratore?.sesso_processo_res}
+                      sessoRichiesto={sessoRichiesto}
                       onSelectProcess={handleProcessSelect}
                     />
                   </div>

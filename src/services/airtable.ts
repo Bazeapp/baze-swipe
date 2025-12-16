@@ -16,7 +16,7 @@ const ensureAirtableConfig = () => {
 
 interface AirtableRecord {
   id: string;
-  fields: Record<string, any>;
+  fields: Record<string, unknown>;
 }
 
 interface AirtableResponse {
@@ -256,12 +256,15 @@ export interface ProcessoInfo {
   recruiter: string;
   recruiterId: string;
   tipo_rapporto: string;
-  momento_giornata: string;
   email_famiglia: string;
-  record_id_processo_value: string;
   informazioni_extra_riservate: string;
   descrizione_animali_in_casa: string;
   luogo_indirizzo: string;
+  mansioni_richieste?: string;
+  sesso_richiesto?: string;
+  annuncio_zona?: string;
+  annuncio_orario?: string;
+  annuncio_famiglia?: string;
 }
 
 export interface WorkerSelection {
@@ -278,78 +281,51 @@ export async function fetchRecruiterProcesses(): Promise<{
   recruiters: RecruiterProcessSummary[];
   processoInfo: Record<string, ProcessoInfo>;
 }> {
-  const { data, error } = await supabase.functions.invoke('recruiter-active');
+  const response = await (supabase as unknown as {
+    from: (
+      table: string
+    ) => {
+      select: (columns: string) => { eq: (col: string, val: string) => Promise<{ data: RecruiterActiveProcessRow[] | null; error: unknown }> };
+    };
+  })
+    .from('recruiter_active_processes')
+    .select(
+      'process_id,recruiter_id,recruiter_name,tipo_lavoro,tipo_rapporto,email_famiglia,informazioni_extra_riservate,descrizione_animali_in_casa,luogo_indirizzo,mansioni_richieste,sesso_richiesto,status,annuncio_zona,annuncio_orario,annuncio_famiglia'
+    )
+    .eq('status', 'active');
+  const data = response.data;
+  const error = response.error;
+
   if (error) {
-    console.error('Errore edge function recruiter-active', error);
+    console.error('Errore fetch recruiter_active_processes', error);
     throw new Error('Impossibile recuperare i recruiter attivi');
   }
-
-  // L'edge function restituisce un oggetto con recruiters e processInfo.
-  let payload: any =
-    data && typeof data === 'object' && 'data' in (data as any)
-      ? (data as any).data
-      : data;
-  if (typeof payload === 'string') {
-    try {
-      payload = JSON.parse(payload);
-    } catch (e) {
-      console.error('Impossibile fare parse della risposta recruiter-active', e);
-      payload = {};
-    }
-  }
-
-  const rawRecruiters: any[] = Array.isArray((payload as any)?.recruiters)
-    ? (payload as any).recruiters
-    : [];
-  const rawProcessInfo: Record<string, any> =
-    (payload as any)?.processInfo || (payload as any)?.processoInfo || {};
 
   const recruiterProcessMap = new Map<string, RecruiterProcessSummary>();
   const processoInfoMap = new Map<string, ProcessoInfo>();
 
-  rawRecruiters.forEach((r: any) => {
-    const recruiterId =
-      typeof r.id === 'string'
-        ? r.id.trim().toLowerCase()
-        : typeof r.recruiter_id === 'string'
-        ? r.recruiter_id.trim().toLowerCase()
-        : undefined;
-    if (!recruiterId) return;
-    const nome = r.name || r.nome || r.recruiter_name || recruiterId;
-    recruiterProcessMap.set(recruiterId, {
-      id: recruiterId,
-      nome,
-      processIds: Array.isArray(r.processIds) ? r.processIds : [],
-    });
-  });
+  (data || []).forEach((row) => {
+    const processoId = row.process_id?.trim();
+    if (!processoId) return;
 
-  Object.entries(rawProcessInfo).forEach(([processoId, info]) => {
-    const recruiterNome =
-      info.recruiter_name || info.recruiter || info.recruiter_id;
-    const recruiterId =
-      typeof info.recruiter_id === 'string'
-        ? info.recruiter_id.trim().toLowerCase()
-        : typeof recruiterNome === 'string'
-        ? recruiterNome.trim().toLowerCase()
-        : undefined;
-    const processoIdentifier =
-      info.record_id_processo_value ||
-      info.record_id_processo ||
-      info.process_id ||
-      processoId;
+    const recruiterId = row.recruiter_id?.trim().toLowerCase();
+    const recruiterNome = row.recruiter_name || recruiterId || '';
 
     processoInfoMap.set(processoId, {
-      tipo_lavoro: info.tipo_lavoro || '',
-      recruiter: recruiterNome || recruiterId || '',
+      tipo_lavoro: row.tipo_lavoro || '',
+      recruiter: recruiterNome,
       recruiterId: recruiterId || '',
-      tipo_rapporto: info.tipo_rapporto || '',
-      momento_giornata: info.momento_giornata || '',
-      email_famiglia: info.email_famiglia || '',
-      record_id_processo_value: String(processoIdentifier || processoId),
+      tipo_rapporto: row.tipo_rapporto || '',
+      email_famiglia: row.email_famiglia || '',
       informazioni_extra_riservate:
-        info.informazioni_extra_riservate || info.note || '',
-      descrizione_animali_in_casa: info.animali || info.descrizione_animali_in_casa || '',
-      luogo_indirizzo: info.luogo_indirizzo || info.indirizzo || '',
+        row.informazioni_extra_riservate || '',
+      descrizione_animali_in_casa: row.descrizione_animali_in_casa || '',
+      luogo_indirizzo: row.luogo_indirizzo || '',
+      mansioni_richieste: row.mansioni_richieste || '',
+      sesso_richiesto: row.sesso_richiesto || '',
+      annuncio_zona: row.annuncio_zona || '',
+      annuncio_orario: row.annuncio_orario || '',
+      annuncio_famiglia: row.annuncio_famiglia || '',
     });
 
     if (recruiterId) {
@@ -373,6 +349,24 @@ export async function fetchRecruiterProcesses(): Promise<{
     recruiters,
     processoInfo: Object.fromEntries(processoInfoMap),
   };
+}
+
+interface RecruiterActiveProcessRow {
+  process_id: string;
+  recruiter_id: string;
+  recruiter_name: string;
+  tipo_lavoro: string | null;
+  tipo_rapporto: string | null;
+  email_famiglia: string | null;
+  informazioni_extra_riservate: string | null;
+  luogo_indirizzo: string | null;
+  status: string | null;
+  descrizione_animali_in_casa: string | null;
+  mansioni_richieste: string | null;
+  sesso_richiesto: string | null;
+  annuncio_zona: string | null;
+  annuncio_orario: string | null;
+  annuncio_famiglia: string | null;
 }
 
 async function fetchCandidatesInternal(

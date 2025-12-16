@@ -159,6 +159,7 @@ const Recruiting = () => {
   const [lavoratori, setLavoratori] = useState<Lavoratore[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [workersLoading, setWorkersLoading] = useState(false);
   const [user, setUser] = useState<Session["user"] | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [recruiters, setRecruiters] = useState<RecruiterProcessSummary[]>([]);
@@ -219,6 +220,7 @@ const Recruiting = () => {
   const [overrideReason, setOverrideReason] = useState("");
   const [overrideContext, setOverrideContext] =
     useState<OverrideContext | null>(null);
+  const isLoadingWorkersRef = useRef<string | null>(null);
   const [overrideSubmitting, setOverrideSubmitting] = useState(false);
   const [profilerRetriggering, setProfilerRetriggering] = useState(false);
   const triggerProfilerReview = useCallback(
@@ -1083,6 +1085,8 @@ const Recruiting = () => {
         processoIdentifier: processoId,
       });
       setProfilerStartedMap((prev) => ({ ...prev, [processoId]: false }));
+      setWorkersLoading(true);
+      setWorkersLoading(true);
       setLoading(true);
       setCurrentIndex(0);
       try {
@@ -1127,10 +1131,17 @@ const Recruiting = () => {
           variant: "destructive",
         });
       } finally {
+        setWorkersLoading(false);
         setLoading(false);
       }
     },
-    [processoInfo, toast, loadExistingProfilerResults, populateProfilerPending]
+    [
+      processoInfo,
+      toast,
+      loadExistingProfilerResults,
+      populateProfilerPending,
+      setWorkersLoading,
+    ]
   );
 
   const loadRecruiterData = useCallback(async () => {
@@ -1197,10 +1208,6 @@ const Recruiting = () => {
         variant: "destructive",
       });
       setLoading(false);
-    } finally {
-      // Ensure the loading state is cleared even when recruiters are available,
-      // so the UI can render the start screen instead of staying stuck.
-      setLoading(false);
     }
   }, [toast]);
 
@@ -1214,6 +1221,7 @@ const Recruiting = () => {
     setSelectedProcesso(value);
     lastLoadedKeyRef.current = null;
     setLavoratori([]);
+    setWorkersLoading(true);
     setLoading(true);
     setCurrentIndex(0);
   }, []);
@@ -1230,6 +1238,7 @@ const Recruiting = () => {
       const firstProcess = recruiter.processIds[0] ?? "";
       setSelectedProcesso(firstProcess);
       setLavoratori([]);
+      setWorkersLoading(true);
       setLoading(true);
       setCurrentIndex(0);
       setSidebarOpen(false);
@@ -1350,31 +1359,45 @@ const Recruiting = () => {
   }, [checkAuth, loadRecruiterData, navigate, recruiters.length, processoInfo]);
 
   useEffect(() => {
-    if (!hasStartedSelection) return;
-    if (!selectedRecruiter || !selectedProcesso) {
-      setLavoratori([]);
-      setLoading(false);
-      return;
-    }
+    const run = async () => {
+      if (!hasStartedSelection) return;
+      if (!selectedRecruiter || !selectedProcesso) {
+        setLavoratori([]);
+        setWorkersLoading(false);
+        setLoading(false);
+        return;
+      }
 
-    if (!processoInfo[selectedProcesso]) {
-      return;
-    }
+      if (!processoInfo[selectedProcesso]) {
+        return;
+      }
 
-    const fetchKey = `${selectedRecruiter.id}:${selectedProcesso}`;
-    if (lastLoadedKeyRef.current === fetchKey && lavoratori.length > 0) {
-      return;
-    }
-    lastLoadedKeyRef.current = fetchKey;
+      const fetchKey = `${selectedRecruiter.id}:${selectedProcesso}`;
+      if (
+        lastLoadedKeyRef.current === fetchKey ||
+        isLoadingWorkersRef.current === fetchKey
+      ) {
+        return;
+      }
 
-    loadLavoratori(selectedRecruiter, selectedProcesso);
+      setWorkersLoading(true);
+      setLoading(true);
+      isLoadingWorkersRef.current = fetchKey;
+      try {
+        await loadLavoratori(selectedRecruiter, selectedProcesso);
+        lastLoadedKeyRef.current = fetchKey;
+      } finally {
+        isLoadingWorkersRef.current = null;
+      }
+    };
+
+    void run();
   }, [
     hasStartedSelection,
     selectedRecruiter,
     selectedProcesso,
     processoInfo,
     loadLavoratori,
-    lavoratori.length,
   ]);
 
   useEffect(() => {
@@ -2091,7 +2114,7 @@ const Recruiting = () => {
 
                 <div className="lg:col-span-9 flex flex-col gap-4">
                   <div className="grid grid-cols-1 lg:grid-cols-9 gap-4">
-                    {loading ? (
+                    {loading || workersLoading ? (
                       <RecruitingLoadingState />
                     ) : currentLavoratore ? (
                       <>

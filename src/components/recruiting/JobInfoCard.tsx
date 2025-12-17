@@ -8,14 +8,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { ProcessoInfo } from "@/services/airtable";
-import {
-  Clock,
-  Info,
-  List,
-  MapPin,
-  PawPrint,
-  Users,
-} from "lucide-react";
+import { Clock, Info, List, MapPin, PawPrint, Users } from "lucide-react";
 
 interface JobInfoCardProps {
   className?: string;
@@ -79,11 +72,7 @@ export function JobInfoCard({
   const renderProcessLabel = (processoId: string) => {
     const info = processoInfo[processoId];
     if (!info) return processoId;
-    const parts = [
-      info.tipo_lavoro,
-      info.tipo_rapporto,
-      info.email_famiglia,
-    ]
+    const parts = [info.tipo_lavoro, info.tipo_rapporto, info.email_famiglia]
       .map((part) => part?.trim())
       .filter(Boolean);
     return parts.join(" ").trim() || processoId;
@@ -107,7 +96,7 @@ export function JobInfoCard({
               value={selectedProcesso || "no-processes"}
               onValueChange={onSelectProcess}
             >
-              <SelectTrigger className="w-full mt-1 pl-0 pr-0 justify-between text-left [&>span]:text-left">
+              <SelectTrigger className="w-full mt-1 ml-1 pl-2  text-left">
                 <SelectValue placeholder="Seleziona processo" />
               </SelectTrigger>
               <SelectContent>

@@ -215,6 +215,9 @@ const Recruiting = () => {
   const lastLoadedKeyRef = useRef<string | null>(null);
   const hasAutoStartedRef = useRef(false);
   const slugAppliedRef = useRef(false);
+  const recruiterActivePromiseRef = useRef<Promise<void> | null>(null);
+  const recruiterDataPromiseRef = useRef<Promise<void> | null>(null);
+  const initialLoadRef = useRef(false);
   const { toast } = useToast();
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
@@ -1025,17 +1028,87 @@ const Recruiting = () => {
       setWorkerSelectionsLoading(false);
     }
   }, [currentIndex, lavoratori, toast]);
-  const checkAuth = useCallback(async () => {
+  const triggerRecruiterActive = useCallback(async () => {
+    if (recruiterActivePromiseRef.current) {
+      return recruiterActivePromiseRef.current;
+    }
+
+    const explicitUrl = import.meta.env.VITE_RECRUITER_ACTIVE_FUNCTION_URL as
+      | string
+      | undefined;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    const url =
+      explicitUrl ||
+      (supabaseUrl
+        ? `${supabaseUrl.replace(/\/$/, "")}/functions/v1/recruiter-active`
+        : null);
+
+    if (!url) return;
+
+    const anonKey = import.meta.env.VITE_RECRUITER_ACTIVE_ANON_KEY as
+      | string
+      | undefined;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as
+      | string
+      | undefined;
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/auth");
+    const accessToken = session?.access_token;
+    const headers: Record<string, string> = {};
+    let explicitOrigin: string | null = null;
+    let supabaseOrigin: string | null = null;
+    try {
+      explicitOrigin = explicitUrl ? new URL(explicitUrl).origin : null;
+      supabaseOrigin = supabaseUrl ? new URL(supabaseUrl).origin : null;
+    } catch {
+      // ignore
+    }
+    const isCrossProject =
+      Boolean(explicitOrigin) &&
+      Boolean(supabaseOrigin) &&
+      explicitOrigin !== supabaseOrigin;
+
+    const bearerToken = isCrossProject
+      ? anonKey
+      : accessToken || anonKey || supabaseKey;
+    const apiKeyHeader = isCrossProject ? anonKey : anonKey || supabaseKey;
+
+    if (!bearerToken) {
+      if (isCrossProject) {
+        console.warn(
+          "Recruiter active uses a different Supabase project; set VITE_RECRUITER_ACTIVE_ANON_KEY to that project's anon key."
+        );
+      }
       return;
     }
-    setUser(session.user);
-    setSupabaseSession(session);
-  }, [navigate]);
+
+    headers.Authorization = `Bearer ${bearerToken}`;
+    if (apiKeyHeader) headers.apikey = apiKeyHeader;
+
+    recruiterActivePromiseRef.current = (async () => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 10_000);
+      try {
+        const requestUrl = new URL(url);
+        requestUrl.searchParams.set("path", window.location.pathname);
+        requestUrl.searchParams.set("ts", new Date().toISOString());
+        await fetch(requestUrl.toString(), {
+          method: "GET",
+          headers,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        console.warn("Recruiter active trigger failed", error);
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    })().finally(() => {
+      recruiterActivePromiseRef.current = null;
+    });
+
+    return recruiterActivePromiseRef.current;
+  }, []);
 
   const loadLavoratori = useCallback(
     async (
@@ -1145,70 +1218,80 @@ const Recruiting = () => {
   );
 
   const loadRecruiterData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await fetchRecruiterProcesses();
-      setProcessoInfo(data.processoInfo);
-      setRecruiters(data.recruiters);
-
-      if (data.recruiters.length === 0) {
-        setSelectedRecruiterId("");
-        setSelectedProcesso("");
-        setLavoratori([]);
-        setLoading(false);
-        return;
-      }
-
-      const defaultRecruiter = data.recruiters[0];
-      const previousRecruiterId = selectedRecruiterIdRef.current;
-      const nextRecruiterId = data.recruiters.some(
-        (r) => r.id === previousRecruiterId
-      )
-        ? previousRecruiterId
-        : defaultRecruiter.id;
-      if (nextRecruiterId !== previousRecruiterId) {
-        setSelectedRecruiterId(nextRecruiterId);
-      }
-
-      const nextRecruiter = data.recruiters.find(
-        (r) => r.id === nextRecruiterId
-      );
-      if (!nextRecruiter) {
-        setLavoratori([]);
-        setLoading(false);
-        return;
-      }
-
-      const availableProcesses = nextRecruiter.processIds ?? [];
-      const previousProcess = selectedProcessoRef.current;
-      const nextProcesso = availableProcesses.includes(previousProcess)
-        ? previousProcess
-        : availableProcesses[0] ?? "";
-
-      if (nextProcesso !== previousProcess) {
-        setSelectedProcesso(nextProcesso);
-      }
-
-      if (!nextProcesso) {
-        setLavoratori([]);
-        setLoading(false);
-        return;
-      }
-
-      setLavoratori([]);
-      setCurrentIndex(0);
-    } catch (error) {
-      console.error("Error loading recruiter/process data:", error);
-      toast({
-        title: "Errore",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Impossibile caricare gli operatori",
-        variant: "destructive",
-      });
-      setLoading(false);
+    if (recruiterDataPromiseRef.current) {
+      return recruiterDataPromiseRef.current;
     }
+
+    recruiterDataPromiseRef.current = (async () => {
+      try {
+        setLoading(true);
+        const data = await fetchRecruiterProcesses();
+        setProcessoInfo(data.processoInfo);
+        setRecruiters(data.recruiters);
+
+        if (data.recruiters.length === 0) {
+          setSelectedRecruiterId("");
+          setSelectedProcesso("");
+          setLavoratori([]);
+          setLoading(false);
+          return;
+        }
+
+        const defaultRecruiter = data.recruiters[0];
+        const previousRecruiterId = selectedRecruiterIdRef.current;
+        const nextRecruiterId = data.recruiters.some(
+          (r) => r.id === previousRecruiterId
+        )
+          ? previousRecruiterId
+          : defaultRecruiter.id;
+        if (nextRecruiterId !== previousRecruiterId) {
+          setSelectedRecruiterId(nextRecruiterId);
+        }
+
+        const nextRecruiter = data.recruiters.find(
+          (r) => r.id === nextRecruiterId
+        );
+        if (!nextRecruiter) {
+          setLavoratori([]);
+          setLoading(false);
+          return;
+        }
+
+        const availableProcesses = nextRecruiter.processIds ?? [];
+        const previousProcess = selectedProcessoRef.current;
+        const nextProcesso = availableProcesses.includes(previousProcess)
+          ? previousProcess
+          : availableProcesses[0] ?? "";
+
+        if (nextProcesso !== previousProcess) {
+          setSelectedProcesso(nextProcesso);
+        }
+
+        if (!nextProcesso) {
+          setLavoratori([]);
+          setLoading(false);
+          return;
+        }
+
+        setLavoratori([]);
+        setCurrentIndex(0);
+      } catch (error) {
+        console.error("Error loading recruiter/process data:", error);
+        toast({
+          title: "Errore",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Impossibile caricare gli operatori",
+          variant: "destructive",
+        });
+        setLoading(false);
+      }
+    })().finally(() => {
+      recruiterDataPromiseRef.current = null;
+    });
+
+    return recruiterDataPromiseRef.current;
   }, [toast]);
 
   const handleProcessSelect = useCallback((value: string) => {
@@ -1350,13 +1433,25 @@ const Recruiting = () => {
   ]);
 
   useEffect(() => {
-    checkAuth();
-    if (recruiters.length === 0 || Object.keys(processoInfo).length === 0) {
-      loadRecruiterData();
-    } else {
-      setLoading(false);
-    }
-  }, [checkAuth, loadRecruiterData, navigate, recruiters.length, processoInfo]);
+    if (initialLoadRef.current) return;
+    initialLoadRef.current = true;
+
+    const run = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      setUser(session.user);
+      setSupabaseSession(session);
+      await triggerRecruiterActive();
+      await loadRecruiterData();
+    };
+
+    void run();
+  }, [loadRecruiterData, navigate, triggerRecruiterActive]);
 
   useEffect(() => {
     const run = async () => {

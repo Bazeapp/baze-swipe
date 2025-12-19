@@ -186,6 +186,16 @@ const normalizeAreaKey = (key: string) => {
 const formatAccordionValue = (key: string, title: string, index: number) =>
   `${key}-${title}-${index}`;
 
+const formatRoundedMinutes = (value: unknown) => {
+  if (value === null || value === undefined) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const normalized = raw.replace(",", ".");
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed)) return raw;
+  return String(Math.round(parsed));
+};
+
 const renderAvailabilityGrid = (availability?: AvailabilityData | null) => {
   if (!availability) return null;
   const dayHeaders =
@@ -475,24 +485,23 @@ export function AiProfilerPanel({
                     }
                   }
 
-                  if (key === "travel_time" && data?.context?.travel_time) {
-                    const travel = data.context.travel_time as Record<string, unknown>;
-                    const workerAddressFromContext = travel.indirizzo_lavoratore_formattato;
-                    const familyAddressFromContext = travel.indirizzo_famiglia_formattato;
-                    const workerAddress = travelAddresses?.worker || workerAddressFromContext;
-                    const familyAddress = travelAddresses?.family || familyAddressFromContext;
-                    const indirizzi = [workerAddress, familyAddress].filter(Boolean).join("\n");
-                    const weeklyHours = travel.ore_settimanali
-                      ? ` per ${travel.ore_settimanali}h/sett.`
-                      : "";
-                    const travelMinutes =
-                      typeof travel.travel_time_tra_cap === "string"
-                        ? travel.travel_time_tra_cap
-                        : detail.why;
-                    const baseLabel =
-                      travelMinutes && String(travelMinutes).trim().length > 0
-                        ? `${travelMinutes} min${weeklyHours}`
-                        : detail.why || null;
+	                  if (key === "travel_time" && data?.context?.travel_time) {
+	                    const travel = data.context.travel_time as Record<string, unknown>;
+	                    const workerAddressFromContext = travel.indirizzo_lavoratore_formattato;
+	                    const familyAddressFromContext = travel.indirizzo_famiglia_formattato;
+	                    const workerAddress = travelAddresses?.worker || workerAddressFromContext;
+	                    const familyAddress = travelAddresses?.family || familyAddressFromContext;
+	                    const indirizzi = [workerAddress, familyAddress].filter(Boolean).join("\n");
+	                    const weeklyHours = travel.ore_settimanali
+	                      ? ` per ${travel.ore_settimanali}h/sett.`
+	                      : "";
+	                    const travelMinutesRaw =
+	                      travel.travel_time_tra_cap ?? travel.travel_time ?? detail.why;
+	                    const travelMinutes = formatRoundedMinutes(travelMinutesRaw);
+	                    const baseLabel =
+	                      travelMinutes && String(travelMinutes).trim().length > 0
+	                        ? `${travelMinutes} min${weeklyHours}`
+	                        : detail.why || null;
 
                     if (workerAddress || familyAddress) {
                       addAccordionItem(

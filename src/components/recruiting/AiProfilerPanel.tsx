@@ -88,9 +88,9 @@ const RATING_STYLES: Record<
 const AREA_ORDER = [
   "travel_time",
   "esperienze",
-  "selezioni_attive",
-  "referenze",
   "disponibilita",
+  "referenze",
+  "selezioni_attive",
 ];
 
 const AREA_ICONS: Record<string, typeof BookOpen> = {

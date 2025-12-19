@@ -112,20 +112,23 @@ export function WorkerProfileCard({
       sections[areaKey].push({ title, content, markdown: options?.markdown });
     };
 
-    const travelTimeRaw = lavoratore.travel_time_tra_cap;
-    const hasTravelTime =
-      travelTimeRaw !== null &&
-      travelTimeRaw !== undefined &&
-      String(travelTimeRaw).trim() !== "";
-    if (hasTravelTime) {
-      addSection(
-        "travel_time",
-        "Tempo di viaggio dichiarato",
-        `${Math.floor(
-          parseFloat(lavoratore.travel_time_tra_cap || "0")
-        )} minuti`
-      );
-    }
+	    const travelTimeRaw = lavoratore.travel_time_tra_cap;
+	    const hasTravelTime =
+	      travelTimeRaw !== null &&
+	      travelTimeRaw !== undefined &&
+	      String(travelTimeRaw).trim() !== "";
+	    if (hasTravelTime) {
+	      const normalizedTravelTime = String(travelTimeRaw).trim().replace(",", ".");
+	      const parsedTravelTime = Number.parseFloat(normalizedTravelTime);
+	      const travelTimeMinutes = Number.isFinite(parsedTravelTime)
+	        ? Math.round(parsedTravelTime)
+	        : String(travelTimeRaw).trim();
+	      addSection(
+	        "travel_time",
+	        "Tempo di viaggio dichiarato",
+	        `${travelTimeMinutes} minuti`
+	      );
+	    }
 
     const experienceBlocks: string[] = [];
     const experienceLines: string[] = [];

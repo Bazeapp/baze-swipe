@@ -42,12 +42,15 @@ export function RecruitingHeader({
             </div>
           </div>
           <div className="flex gap-2 items-center">
-            <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+            >
               <Link to="/recruiting">Recruiting</Link>
             </Button>
-            <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-              <Link to="/ai-profiler-dashboard">Dashboard</Link>
-            </Button>
+
             <Button
               onClick={onLogout}
               variant="ghost"

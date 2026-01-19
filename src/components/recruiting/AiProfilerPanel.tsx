@@ -2,7 +2,7 @@ import { Fragment, ReactNode, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
   Accordion,
@@ -116,7 +116,7 @@ const AREA_CONTENT_RULES: Record<string, string[]> = {
   esperienze: ["Esperienze dichiarate", "Dettaglio esperienze", "Competenze"],
   referenze: ["Referenze"],
   travel_time: ["Tempo di viaggio dichiarato", "Indirizzi", "Percorso"],
-  disponibilita: ["Fascia"],
+  disponibilita: ["Fascia", "Altre selezioni attive"],
 };
 
 const AREA_KEYS = {
@@ -253,6 +253,104 @@ const renderAvailabilityGrid = (availability?: AvailabilityData | null) => {
   );
 };
 
+type ActiveSelection = {
+  processo_res_id?: string;
+  processo_title?: string;
+  stato_selezione?: string;
+  annuncio_orario_di_lavoro?: string;
+};
+
+const getActiveSelections = (context?: AiProfilerResponse["context"]) => {
+  if (!context || typeof context !== "object") return [];
+  const availabilityContext = context.disponibilita;
+  if (!availabilityContext || typeof availabilityContext !== "object") return [];
+  const rawSelections =
+    (availabilityContext as Record<string, unknown>).active_selezioni ??
+    (availabilityContext as Record<string, unknown>).altre_selezioni_attive ??
+    (availabilityContext as Record<string, unknown>)["altre selezioni attive"];
+  if (!Array.isArray(rawSelections)) return [];
+  return rawSelections
+    .filter((selection) => selection && typeof selection === "object")
+    .map((selection) => {
+      const record = selection as Record<string, unknown>;
+      return {
+        processo_res_id:
+          typeof record.processo_res_id === "string"
+            ? record.processo_res_id
+            : undefined,
+        stato_selezione:
+          typeof record.stato_selezione === "string"
+            ? record.stato_selezione
+            : undefined,
+        annuncio_orario_di_lavoro:
+          typeof record.annuncio_orario_di_lavoro === "string"
+            ? record.annuncio_orario_di_lavoro
+            : undefined,
+        processo_title:
+          typeof record.processo_title === "string"
+            ? record.processo_title
+            : undefined,
+      };
+    })
+    .filter(
+      (selection) =>
+        selection.processo_res_id ||
+        selection.stato_selezione ||
+        selection.annuncio_orario_di_lavoro
+    );
+};
+
+const renderActiveSelections = (selections: ActiveSelection[]) => {
+  if (selections.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      {selections.map((selection, index) => {
+        const title =
+          selection.processo_title?.trim() ||
+          (selection.processo_res_id
+            ? `Processo ${selection.processo_res_id}`
+            : "Selezione attiva");
+        return (
+          <Card
+            key={`${selection.processo_res_id ?? "selection"}-${index}`}
+            className="bg-card/80 border-border shadow-sm"
+          >
+            <CardHeader className="p-3 pb-2">
+              <div className="text-sm font-medium text-foreground">
+                {title}
+              </div>
+              {selection.annuncio_orario_di_lavoro && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  ⏱️ {selection.annuncio_orario_di_lavoro}
+                </p>
+              )}
+              {selection.processo_res_id && (
+                <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                  <span className="block text-muted-foreground/80">
+                    ID: {selection.processo_res_id}
+                  </span>
+                </p>
+              )}
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+              <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                {selection.stato_selezione && (
+                  <Badge
+                    variant="outline"
+                    className="border-border text-foreground bg-muted/50"
+                  >
+                    Selezione: {selection.stato_selezione}
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+};
+
 export function AiProfilerPanel({
   data,
   error,
@@ -268,6 +366,10 @@ export function AiProfilerPanel({
   travelAddresses,
 }: AiProfilerPanelProps) {
   const [mapsUrl, setMapsUrl] = useState<string | null>(null);
+  const activeSelections = useMemo(
+    () => getActiveSelections(data?.context),
+    [data?.context]
+  );
   const areas = useMemo(() => {
     if (!data?.areas) return [];
     const sanitized = Object.entries(data.areas)
@@ -426,6 +528,12 @@ export function AiProfilerPanel({
 
                     if (showAvailability) {
                       addAccordionItem("Fascia", renderAvailabilityGrid(availabilityData));
+                    }
+                    if (key === "disponibilita" && activeSelections.length > 0) {
+                      addAccordionItem(
+                        "Altre selezioni attive",
+                        renderActiveSelections(activeSelections)
+                      );
                     }
 
                   if (key === "esperienze" && data?.context?.competenze) {
